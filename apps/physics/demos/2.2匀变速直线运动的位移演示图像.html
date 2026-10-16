@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>匀变速直线运动的位移 —— 微元法与极限思想</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px 14px 44px;
+      background: #eef3f8;
+      font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, sans-serif;
+      color: #223;
+    }
+
+    .app {
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 19px;
+      color: #144b8c;
+      text-align: center;
+      margin: 0 0 6px;
+      letter-spacing: .5px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #6b7a8d;
+      margin: 0 0 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 18px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 3px 14px rgba(20, 60, 110, .08);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+
+    /* ---------- 控制区 ---------- */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+      gap: 10px 24px;
+      margin-top: 16px;
+    }
+
+    .ctrl-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+    }
+
+    .ctrl-item label {
+      flex: 0 0 66px;
+      color: #334155;
+      font-weight: 600;
+    }
+
+    .ctrl-item input[type=range] {
+      flex: 1 1 auto;
+      min-width: 0;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+
+    .ctrl-item .val {
+      flex: 0 0 62px;
+      text-align: right;
+      font-family: Consolas, Menlo, monospace;
+      font-weight: 700;
+      color: #2563eb;
+      font-size: 13px;
+    }
+
+    /* ---------- 上下箭头步进器 ---------- */
+    .stepper {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-left: 3px;
+    }
+
+    .step-btn {
+      width: 26px;
+      height: 20px;
+      padding: 0;
+      font-size: 9px;
+      line-height: 1;
+      border-radius: 4px;
+      background: #dbeafe;
+      color: #1e40af;
+      box-shadow: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .1s;
+    }
+
+    .step-btn:hover {
+      background: #bfdbfe;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .step-btn:active {
+      background: #93c5fd;
+      transform: none;
+    }
+
+    .step-btn:disabled {
+      background: #eef2f7;
+      color: #b0bac6;
+      cursor: not-allowed;
+    }
+
+    .btn-row {
+      margin-top: 14px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button.main-btn {
+      padding: 8px 22px;
+      border: none;
+      border-radius: 7px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 13.5px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: .15s;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, .28);
+    }
+
+    button.main-btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+
+    button.main-btn:active {
+      transform: translateY(0);
+    }
+
+    button.ghost {
+      background: #e2e8f0;
+      color: #334155;
+      box-shadow: 0 2px 6px rgba(100, 116, 139, .18);
+    }
+
+    button.ghost:hover {
+      background: #cbd5e1;
+    }
+
+    /* ---------- 结果区 ---------- */
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .res-item {
+      background: #f7fafd;
+      border-radius: 8px;
+      padding: 10px 14px;
+      border-left: 4px solid #94a3b8;
+    }
+
+    .res-item.b1 {
+      border-left-color: #2563eb;
+    }
+
+    .res-item.b2 {
+      border-left-color: #dc2626;
+    }
+
+    .res-item.b3 {
+      border-left-color: #d97706;
+    }
+
+    .res-label {
+      display: block;
+      font-size: 12.5px;
+      color: #64748b;
+      margin-bottom: 5px;
+    }
+
+    .res-val {
+      display: block;
+      font-size: 17px;
+      font-weight: 700;
+      font-family: Consolas, Menlo, monospace;
+    }
+
+    .res-val.blue {
+      color: #2563eb;
+    }
+
+    .res-val.red {
+      color: #dc2626;
+    }
+
+    .res-val.amber {
+      color: #d97706;
+    }
+
+    .note {
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 2;
+      color: #475569;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .note .eq {
+      font-family: "Times New Roman", Times, serif;
+      font-style: italic;
+      font-size: 15px;
+      color: #1e293b;
+    }
+
+    .note .hl {
+      color: #dc2626;
+      font-weight: 700;
+    }
+
+    .note .bl {
+      color: #2563eb;
+      font-weight: 700;
+    }
+
+    .tip {
+      font-size: 12.5px;
+      color: #7c8798;
+      margin-top: 10px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <h1>匀变速直线运动的位移</h1>
+    <p class="subtitle">微元法与极限思想 —— 面积即位移</p>
+
+    <!-- ===================== 画布 ===================== -->
+    <div class="card">
+      <canvas id="cv"></canvas>
+
+      <!-- ---------- 控制区 ---------- -->
+      <div class="controls">
+        <div class="ctrl-item">
+          <label>初速度 v₀</label>
+          <input type="range" id="v0Range" min="0" max="6" step="0.2" value="2">
+          <span class="val" id="v0Val">2.0 m/s</span>
+        </div>
+        <div class="ctrl-item">
+          <label>加速度 a</label>
+          <input type="range" id="aRange" min="0.2" max="4" step="0.1" value="1">
+          <span class="val" id="aVal">1.0 m/s²</span>
+        </div>
+        <div class="ctrl-item">
+          <label>运动时间 t</label>
+          <input type="range" id="tRange" min="1" max="6" step="0.2" value="4">
+          <span class="val" id="tVal">4.0 s</span>
+        </div>
+        <div class="ctrl-item">
+          <label>分割数 n</label>
+          <input type="range" id="nRange" min="1" max="100" step="1" value="1">
+          <span class="val" id="nVal">1</span>
+          <div class="stepper">
+            <button class="step-btn" id="nUp" aria-label="增加分割数">▲</button>
+            <button class="step-btn" id="nDown" aria-label="减少分割数">▼</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="main-btn" id="btnAuto">自动分割 (n → 100)</button>
+        <button class="main-btn ghost" id="btnReset">重置</button>
+      </div>
+    </div>
+
+    <!-- ===================== 结果 ===================== -->
+    <div class="card">
+      <div class="results">
+        <div class="res-item b1">
+          <span class="res-label">小矩形面积之和（近似位移）</span>
+          <span class="res-val blue" id="approxVal">—</span>
+        </div>
+        <div class="res-item b2">
+          <span class="res-label">匀变速直线运动实际位移</span>
+          <span class="res-val red" id="exactVal">—</span>
+        </div>
+        <div class="res-item b3">
+          <span class="res-label">差　值（误差）</span>
+          <span class="res-val amber" id="errVal">—</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <div class="eq">
+          s<sub>近似</sub> = v<sub>1</sub>Δt + v<sub>2</sub>Δt + … + v<sub>n</sub>Δt = <span class="bl">Σ
+            v<sub>i</sub>Δt</span>
+        </div>
+        <div class="eq">
+          s<sub>精确</sub> = v<sub>0</sub>t + ½at²　　（梯形面积 = ½(v₀ + v<sub>t</sub>)·t）
+        </div>
+        <div class="eq">
+          误差 Δs = <span class="hl">½at² / n</span>　→　0　（n → ∞）
+        </div>
+      </div>
+
+      <div class="tip">
+        提示：每个小矩形代表小球在该 Δt 内做匀速直线运动，其面积 v<sub>i</sub>·Δt 就是这段时间内的位移。
+        当 Δt 足够小时，各小矩形面积之和就无限接近匀变速直线运动的真实位移 —— 即 v–t 图线与时间轴围成的面积。
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* ============================================================
+         基础设置
+         ============================================================ */
+      const CW = 720, CH = 440;
+      const PAD = {L: 74, R: 40, T: 46, B: 58};
+      const N_MAX = 100;              // 分割数上限
+
+      const cvs = document.getElementById('cv');
+      const ctx = cvs.getContext('2d');
+
+      function setupCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        cvs.width = Math.round(CW * dpr);
+        cvs.height = Math.round(CH * dpr);
+        cvs.style.maxWidth = CW + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      /* ============================================================
+         工具函数
+         ============================================================ */
+      function niceStep(raw) {
+        if (!(raw > 0)) return 1;
+        const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+        const n = raw / mag;
+        let s;
+        if (n <= 1) s = 1;
+        else if (n <= 2) s = 2;
+        else if (n <= 5) s = 5;
+        else s = 10;
+        return s * mag;
+      }
+
+      function tickDecimals(step) {
+        let d = 0, s = step;
+        while (Math.abs(s - Math.round(s)) > 1e-9 && d < 6) {s *= 10; d++;}
+        return d;
+      }
+
+      function arrow(x, y, angle, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-10, 5);
+        ctx.lineTo(-10, -5);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      /* ============================================================
+         状态
+         ============================================================ */
+      const state = {v0: 2, a: 1, t: 4, n: 1};
+
+      /* ============================================================
+         绘制
+         ============================================================ */
+      function draw() {
+        const v0 = state.v0, a = state.a, t = state.t, n = state.n;
+
+        const px0 = PAD.L, px1 = CW - PAD.R;
+        const py0 = CH - PAD.B, py1 = PAD.T;
+        const pw = px1 - px0, ph = py0 - py1;
+
+        /* ---------- 确定坐标轴范围 ---------- */
+        const vTop = Math.max(v0 + a * t, 0.6);
+
+        let xStep = niceStep(Math.max(t, 0.6) / 5);
+        let xAxis = Math.ceil(t / xStep - 1e-9) * xStep;
+        if (xAxis < t * 1.03) xAxis += xStep;
+
+        let yStep = niceStep(vTop / 4.5);
+        let yAxis = Math.ceil(vTop / yStep - 1e-9) * yStep;
+        if (yAxis < vTop * 1.03) yAxis += yStep;
+
+        const X = tt => px0 + (tt / xAxis) * pw;
+        const Y = vv => py0 - (vv / yAxis) * ph;
+
+        const xTicks = Math.round(xAxis / xStep);
+        const yTicks = Math.round(yAxis / yStep);
+        const xDec = tickDecimals(xStep);
+        const yDec = tickDecimals(yStep);
+
+        /* ---------- 背景 ---------- */
+        ctx.clearRect(0, 0, CW, CH);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, CW, CH);
+
+        /* ---------- 浅色网格 ---------- */
+        ctx.strokeStyle = '#eef3f8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 1; i <= xTicks; i++) {
+          const x = X(i * xStep);
+          ctx.moveTo(x, py0); ctx.lineTo(x, py1);
+        }
+        for (let i = 1; i <= yTicks; i++) {
+          const y = Y(i * yStep);
+          ctx.moveTo(px0, y); ctx.lineTo(px1, y);
+        }
+        ctx.stroke();
+
+        /* ---------- 小矩形（左端点求和） ---------- */
+        const dt = t / n;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(px0, py1 - 2, pw + 1, ph + 4);
+        ctx.clip();
+
+        for (let i = 0; i < n; i++) {
+          const ta = i * dt;
+          const tb = ta + dt;
+          const v = v0 + a * ta;             // 该 Δt 内的“匀速”速度
+          const xa = X(ta), xb = X(tb);
+          const ya = Y(v);
+          const w = xb - xa;
+          const h = py0 - ya;
+          if (w <= 0 || h <= 0) continue;
+
+          // 填充
+          ctx.fillStyle = 'rgba(96,165,250,0.42)';
+          ctx.fillRect(xa, ya, w, h);
+
+          // 描边（矩形足够宽时才画，避免过密糊成一片）
+          if (w >= 6) {
+            ctx.strokeStyle = 'rgba(37,99,235,0.80)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(xa + 0.5, ya + 0.5, w - 1, h - 1);
+          }
+        }
+
+        /* ---------- 矩形内部速度标注 ---------- */
+        if (n <= 10) {
+          ctx.font = '11px Consolas, Menlo, monospace';
+          ctx.fillStyle = '#1e40af';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          for (let i = 0; i < n; i++) {
+            const ta = i * dt;
+            const v = v0 + a * ta;
+            const xa = X(ta), xb = X(ta + dt);
+            const w = xb - xa;
+            if (w < 28) continue;
+            const ya = Y(v);
+            const h = py0 - ya;
+            if (h < 18) continue;
+            ctx.fillText(v.toFixed(1), xa + w / 2, ya + 13);
+          }
+        }
+
+        ctx.restore();
+
+        /* ---------- v–t 直线 ---------- */
+        ctx.beginPath();
+        ctx.moveTo(X(0), Y(v0));
+        ctx.lineTo(X(t), Y(v0 + a * t));
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // 端点圆点
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath(); ctx.arc(X(0), Y(v0), 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(X(t), Y(v0 + a * t), 4, 0, Math.PI * 2); ctx.fill();
+
+        // 直线方程标注
+        ctx.font = 'italic bold 13.5px "Times New Roman", Times, serif';
+        ctx.fillStyle = '#dc2626';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('v = v₀ + at', X(t) - 6, Y(v0 + a * t) - 12);
+
+        /* ---------- 坐标轴 ---------- */
+        const AXC = '#b91c1c';
+        ctx.strokeStyle = AXC;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px0, py0); ctx.lineTo(px1 + 20, py0);   // 横轴
+        ctx.moveTo(px0, py0); ctx.lineTo(px0, py1 - 16);   // 纵轴
+        ctx.stroke();
+
+        arrow(px1 + 20, py0, 0, AXC);
+        arrow(px0, py1 - 16, -Math.PI / 2, AXC);
+
+        // 刻度线
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let i = 0; i <= xTicks; i++) {
+          const x = X(i * xStep);
+          ctx.moveTo(x, py0); ctx.lineTo(x, py0 + 6);
+        }
+        for (let i = 0; i <= yTicks; i++) {
+          const y = Y(i * yStep);
+          ctx.moveTo(px0, y); ctx.lineTo(px0 - 6, y);
+        }
+        ctx.stroke();
+
+        // 刻度数值
+        ctx.fillStyle = '#7f1d1d';
+        ctx.font = '11px Consolas, Menlo, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        for (let i = 0; i <= xTicks; i++) {
+          ctx.fillText((i * xStep).toFixed(xDec), X(i * xStep), py0 + 10);
+        }
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        for (let i = 0; i <= yTicks; i++) {
+          ctx.fillText((i * yStep).toFixed(yDec), px0 - 10, Y(i * yStep));
+        }
+
+        // 轴标签
+        ctx.font = 'italic bold 14px "Times New Roman", Times, serif';
+        ctx.fillStyle = AXC;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('t / s', px1 + 18, py0 - 9);
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('v / (m·s⁻¹)', px0 + 8, py1 - 22);
+      }
+
+      /* ============================================================
+         结果更新
+         ============================================================ */
+      const elApprox = document.getElementById('approxVal');
+      const elExact = document.getElementById('exactVal');
+      const elErr = document.getElementById('errVal');
+
+      function updateStats() {
+        const v0 = state.v0, a = state.a, t = state.t, n = state.n;
+        const dt = t / n;
+
+        let sum = 0;
+        for (let i = 0; i < n; i++) {
+          sum += (v0 + a * i * dt) * dt;
+        }
+        const exact = v0 * t + 0.5 * a * t * t;
+        const err = exact - sum;
+        const errPct = exact > 1e-9 ? (err / exact * 100) : 0;
+
+        elApprox.textContent = sum.toFixed(4) + ' m';
+        elExact.textContent = exact.toFixed(4) + ' m';
+        elErr.textContent = err.toFixed(4) + ' m  (' + errPct.toFixed(2) + '%)';
+      }
+
+      /* ============================================================
+         渲染总入口
+         ============================================================ */
+      function render() {
+        draw();
+        updateStats();
+        syncStepper();
+      }
+
+      /* ============================================================
+         控件
+         ============================================================ */
+      const v0Range = document.getElementById('v0Range');
+      const aRange = document.getElementById('aRange');
+      const tRange = document.getElementById('tRange');
+      const nRange = document.getElementById('nRange');
+
+      const v0Val = document.getElementById('v0Val');
+      const aVal = document.getElementById('aVal');
+      const tVal = document.getElementById('tVal');
+      const nVal = document.getElementById('nVal');
+
+      const nUpBtn = document.getElementById('nUp');
+      const nDownBtn = document.getElementById('nDown');
+
+      /* ---- 分割数专用：统一设置 + 同步滑块 / 数值 / 按钮状态 ---- */
+      function setN(value) {
+        value = Math.max(1, Math.min(N_MAX, Math.round(value)));
+        state.n = value;
+        nRange.value = value;
+        nVal.textContent = value;
+        render();
+      }
+
+      function syncStepper() {
+        nUpBtn.disabled = (state.n >= N_MAX);
+        nDownBtn.disabled = (state.n <= 1);
+      }
+
+      /* ---- 滑块事件 ---- */
+      v0Range.addEventListener('input', function () {
+        state.v0 = parseFloat(v0Range.value);
+        v0Val.textContent = state.v0.toFixed(1) + ' m/s';
+        render();
+      });
+
+      aRange.addEventListener('input', function () {
+        state.a = parseFloat(aRange.value);
+        aVal.textContent = state.a.toFixed(1) + ' m/s²';
+        render();
+      });
+
+      tRange.addEventListener('input', function () {
+        state.t = parseFloat(tRange.value);
+        tVal.textContent = state.t.toFixed(1) + ' s';
+        render();
+      });
+
+      nRange.addEventListener('input', function () {
+        stopAuto();                       // 手动拖动时停止自动分割
+        state.n = parseInt(nRange.value, 10);
+        nVal.textContent = state.n;
+        render();
+      });
+
+      /* ---- 步进按钮事件 ---- */
+      nUpBtn.addEventListener('click', function () {
+        stopAuto();
+        setN(state.n + 1);
+      });
+
+      nDownBtn.addEventListener('click', function () {
+        stopAuto();
+        setN(state.n - 1);
+      });
+
+      /* ---------- 自动分割 ---------- */
+      const btnAuto = document.getElementById('btnAuto');
+      let autoTimer = null;
+
+      function stopAuto() {
+        if (autoTimer !== null) {
+          clearTimeout(autoTimer);
+          autoTimer = null;
+        }
+        btnAuto.textContent = '自动分割 (n → 100)';
+      }
+
+      btnAuto.addEventListener('click', function () {
+        if (autoTimer !== null) {          // 正在运行 → 暂停
+          stopAuto();
+          return;
+        }
+        if (state.n >= N_MAX) {            // 已到最大 → 从头开始
+          setN(1);
+        }
+        btnAuto.textContent = '暂停';
+
+        function step() {
+          if (state.n >= N_MAX) {
+            stopAuto();
+            return;
+          }
+          let next = Math.ceil(state.n * 1.22) + 1;
+          if (next > N_MAX) next = N_MAX;
+          setN(next);
+
+          const delay = next < 20 ? 130 : (next < 60 ? 90 : 55);
+          autoTimer = setTimeout(step, delay);
+        }
+        autoTimer = setTimeout(step, 60);
+      });
+
+      /* ---------- 重置 ---------- */
+      document.getElementById('btnReset').addEventListener('click', function () {
+        stopAuto();
+
+        state.v0 = 2; state.a = 1; state.t = 4; state.n = 1;
+
+        v0Range.value = 2; v0Val.textContent = '2.0 m/s';
+        aRange.value = 1; aVal.textContent = '1.0 m/s²';
+        tRange.value = 4; tVal.textContent = '4.0 s';
+        nRange.value = 1; nVal.textContent = '1';
+
+        render();
+      });
+
+      /* ============================================================
+         初始化
+         ============================================================ */
+      setupCanvas();
+      render();
+
+    })();
+  </script>
+</body>
+
+</html>

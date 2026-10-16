@@ -1,0 +1,47 @@
+/* ============================================================
+   physics · 结构令牌（Structure Tokens）
+   ------------------------------------------------------------
+   这里只放「与配色无关」的东西：字体、字号、圆角、尺度、动效。
+   颜色全部在 themes.css（三套主题）。
+   ============================================================ */
+
+:root {
+  /* ---------- 字体 ----------
+     全系统字体栈 = 零网络请求。 */
+  --font-sans: "HarmonyOS Sans SC", "Source Han Sans SC", "Noto Sans SC",
+               "MiSans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  /* 等宽只给数字 / 编号 / 物理量用，配 tabular-nums 让数字上下对齐 */
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", "Cascadia Mono",
+               Consolas, ui-monospace, monospace;
+  /* 标题字体由各主题决定（纸质档用宋体，其余用黑体） */
+  --font-title: var(--font-sans);
+
+  /* ---------- 字号 ---------- */
+  --fs-xs:   12px;
+  --fs-sm:   13px;
+  --fs-base: 15px;
+  --fs-md:   17px;
+  --fs-lg:   20px;
+  --fs-xl:   28px;
+  --fs-2xl:  36px;
+
+  /* ---------- 圆角（克制：这是工具，不是消费类 App） ---------- */
+  --r-sm: 3px;
+  --r:    5px;
+  --r-lg: 8px;
+
+  /* ---------- 尺度 ---------- */
+  --rail:    206px;
+  --topbar:  58px;
+  --tabbar:  58px;
+  --maxw:    1360px;
+  --gutter:  30px;
+
+  /* ---------- 动效 ---------- */
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --dur:  160ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur: 1ms; }
+}

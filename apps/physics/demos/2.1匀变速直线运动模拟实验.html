@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>匀变速直线运动——斜槽实验模拟</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 18px 16px 36px;
+    background: #eef3f8;
+    font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Arial, sans-serif;
+    color: #223;
+  }
+  .app { max-width: 1140px; margin: 0 auto; }
+  h1 {
+    font-size: 19px; color: #144b8c; text-align: center;
+    margin: 0 0 14px; letter-spacing: .5px;
+  }
+
+  /* ============ 主布局：左（动画 + 频闪） / 右（数据表） ============ */
+  .main { display: flex; gap: 14px; align-items: flex-start; }
+  .col-left {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .col-right { flex: 0 0 296px; }
+
+  .panel {
+    background: #fff; border-radius: 10px;
+    padding: 12px 16px 14px;
+    box-shadow: 0 3px 14px rgba(20, 60, 110, .08);
+  }
+  .panel h2 {
+    font-size: 14px; color: #2563eb; margin: 0 0 10px;
+    padding-left: 9px; border-left: 4px solid #2563eb;
+    line-height: 1.2; font-weight: 700;
+  }
+
+  /* ---- 顶部双画布 ---- */
+  .topRow { display: flex; gap: 12px; align-items: flex-start; }
+  .half { flex: 1 1 0; min-width: 0; }
+  .half canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
+  #flashCanvas {
+    display: block; max-width: 100%; height: auto;
+    border-radius: 6px; margin: 0 auto;
+  }
+
+  /* ---- 控件 ---- */
+  .ctrl {
+    display: flex; flex-wrap: wrap; gap: 10px 18px;
+    margin-top: 10px; align-items: center; font-size: 13px;
+  }
+  .ctrl label { display: flex; align-items: center; gap: 6px; }
+  .ctrl input[type=range] { width: 100px; accent-color: #2563eb; cursor: pointer; }
+  .ctrl .val {
+    font-family: Consolas, Menlo, monospace; font-weight: 700;
+    color: #2563eb; min-width: 52px; text-align: right;
+  }
+  button {
+    padding: 7px 18px; border: none; border-radius: 6px;
+    background: #2563eb; color: #fff; font-size: 13px;
+    cursor: pointer; font-family: inherit; transition: .15s;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, .28);
+  }
+  button:hover { background: #1d4ed8; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+
+  .status {
+    margin-top: 9px; font-size: 12.5px;
+    font-family: Consolas, Menlo, monospace;
+    color: #1e3a8a; background: #f0f7ff;
+    border-radius: 6px; padding: 6px 12px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .status b { color: #dc2626; }
+  .hint { font-size: 12px; color: #778; margin-top: 8px; line-height: 1.6; }
+
+  /* ============ 转置后的数据表（行=拍照间隔，列=物理量） ============ */
+  .data-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .data-table th, .data-table td {
+    border: 1px solid #b8cfe6;
+    padding: 6px 4px;
+    text-align: center;
+    font-family: Consolas, Menlo, monospace;
+  }
+  .data-table thead th {
+    background: #e8f2fd; color: #144b8c;
+    font-weight: 700; font-family: inherit; font-size: 12.5px;
+    padding: 7px 4px;
+  }
+  .data-table tbody td:first-child {
+    background: #f8fbff; color: #2563eb; font-weight: 700;
+    width: 44px; font-size: 12.5px;
+  }
+  .data-table tbody tr:nth-child(even) td { background: #fbfdff; }
+  .data-table tbody tr:nth-child(even) td:first-child { background: #f2f8ff; }
+  .data-table tbody td:nth-child(2) { color: #0b6b4f; }
+  .data-table tbody td:nth-child(3) { color: #b45309; font-weight: 700; }
+  .data-table .empty {
+    color: #9aa; font-family: inherit; padding: 14px 6px;
+  }
+  .table-wrap {
+    max-height: 470px; overflow-y: auto; border-radius: 6px;
+  }
+  .table-wrap::-webkit-scrollbar { width: 7px; }
+  .table-wrap::-webkit-scrollbar-thumb { background: #c3d7ee; border-radius: 4px; }
+
+  /* ---- 窄屏堆叠 ---- */
+  @media (max-width: 960px) {
+    .main { flex-direction: column; }
+    .col-right { flex: 1 1 auto; width: 100%; }
+    .table-wrap { max-height: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <h1>匀变速直线运动——斜槽实验模拟</h1>
+
+  <div class="main">
+
+    <!-- ================= 左列 ================= -->
+    <div class="col-left">
+
+      <!-- 一、动画 + 实时 v-t -->
+      <div class="panel">
+        <h2>一、斜槽演示动画　|　实时 v–t 图像</h2>
+        <div class="topRow">
+          <div class="half"><canvas id="animCanvas"></canvas></div>
+          <div class="half"><canvas id="vtCanvas"></canvas></div>
+        </div>
+        <div class="ctrl">
+          <label>斜槽高度 h：
+            <input type="range" id="hRange" min="0.10" max="1.20" step="0.05" value="0.60">
+            <span class="val" id="hVal">0.60 m</span>
+          </label>
+          <label>闪光间隔 T：
+            <input type="range" id="tRange" min="0.10" max="0.50" step="0.05" value="0.20">
+            <span class="val" id="tVal">0.20 s</span>
+          </label>
+          <button id="btnRun">开始演示</button>
+        </div>
+        <div class="status">
+          <span>t = <b id="statT">0.00</b> s</span>
+          <span>s = <b id="statS">0.000</b> m</span>
+          <span>v = <b id="statV">0.00</b> m/s</span>
+          <span>a = <b id="statA">0.00</b> m/s²</span>
+        </div>
+      </div>
+
+      <!-- 二、频闪照片 -->
+      <div class="panel">
+        <h2>二、频闪照片模拟（物理模型图）</h2>
+        <canvas id="flashCanvas"></canvas>
+        <div class="hint">
+          红点表示频闪照相机在相等时间间隔 T 内拍下的小球位置（最左侧灰点为释放点）。
+          相邻位置间距逐段增大，且每段位移增量相等；右上 v–t 图中的橙点与这些位置一一对应。
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= 右列：数据表（转置） ================= -->
+    <div class="col-right">
+      <div class="panel">
+        <h2>三、实验数据记录</h2>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>第 n 段</th>
+                <th>s / m</th>
+                <th>Δs / m</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr><td colspan="3" class="empty">开始演示后显示数据…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="hint">
+          匀加速直线运动中，Δs₁ = Δs₂ = Δs₃ = … = aT²，为一恒量。
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     物理常量
+     ============================================================ */
+  const G = 9.8;          // 重力加速度
+  const L = 2.0;          // 斜槽水平底边长度（固定）
+
+  /* ============================================================
+     画布与视图
+     ============================================================ */
+  const ANIM_W = 340, ANIM_H = 272;
+  const VT_W   = 340, VT_H   = 272;
+  const FLASH_W = 660, FLASH_H = 330;
+
+  function makeView(cv, cw, ch) {
+    const dpr = window.devicePixelRatio || 1;
+    cv.width  = Math.round(cw * dpr);
+    cv.height = Math.round(ch * dpr);
+    cv.style.maxWidth = cw + 'px';
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, cv: cv, cw: cw, ch: ch,
+             scale: 1, padX: 0, padY: 0, wxMin: 0, wyMin: 0 };
+  }
+
+  const animView  = makeView(document.getElementById('animCanvas'),  ANIM_W,  ANIM_H);
+  const vtView    = makeView(document.getElementById('vtCanvas'),    VT_W,    VT_H);
+  const flashView = makeView(document.getElementById('flashCanvas'), FLASH_W, FLASH_H);
+
+  /* 当前正在绘制的视图（供 toSX / toSY 使用） */
+  let V = animView;
+
+  function toSX(x) { return V.padX + (x - V.wxMin) * V.scale; }
+  function toSY(y) { return V.ch - V.padY - (y - V.wyMin) * V.scale; }
+
+  /* 根据斜槽高度自动适配世界坐标，压缩空白 */
+  function fitView(v, h) {
+    const marginX = 0.25;         // 左右留白（世界单位）
+    const marginBot = 0.12;       // 底部留白
+    const marginTop = 0.45;       // 顶部留白（给尺寸标注线用）
+
+    let wxMin = -marginX;
+    let wxMax = L + marginX;
+    let wyMin = -marginBot;
+    let wyMax = h + marginTop;
+
+    const minWorldH = 0.85;       // 防止 h 太小时画面过扁
+    if (wyMax - wyMin < minWorldH) wyMax = wyMin + minWorldH;
+
+    const wW = wxMax - wxMin;
+    const wH = wyMax - wyMin;
+    const s = Math.min(v.cw / wW, v.ch / wH);
+
+    v.scale = s;
+    v.wxMin = wxMin;
+    v.wyMin = wyMin;
+    v.padX = (v.cw - wW * s) / 2;
+    v.padY = (v.ch - wH * s) / 2;
+  }
+
+  /* ============================================================
+     状态
+     ============================================================ */
+  const state = {
+    h: 0.60,
+    T: 0.20,
+    a: 0,
+    len: 0,
+    tEnd: 0,
+    s: 0,
+    simT: 0,
+    running: false,
+    finished: false,
+    flashes: [],
+    lastFrame: 0
+  };
+
+  /* ============================================================
+     物理计算
+     ============================================================ */
+  function updatePhysics() {
+    const h = state.h;
+    state.len  = Math.hypot(L, h);
+    state.a    = G * (h / state.len);                // a = g·sinθ
+    state.tEnd = Math.sqrt(2 * state.len / state.a); // 到底端的时间
+  }
+
+  function computeFlashes() {
+    const arr = [];
+    const T = state.T;
+    const nMax = Math.floor(state.tEnd / T + 1e-9);
+    for (let n = 1; n <= nMax && n <= 40; n++) {
+      const t = n * T;
+      const s = 0.5 * state.a * t * t;
+      if (s <= state.len + 1e-9) arr.push({ n: n, t: t, s: s });
+    }
+    return arr;
+  }
+
+  function getVisible() {
+    return state.flashes.filter(f => f.t <= state.simT + 1e-9);
+  }
+
+  /* ============================================================
+     斜槽上距顶端 s 处的屏幕坐标（沿法线外移 r 像素）
+     ============================================================ */
+  function getBallPos(s, h, r) {
+    const len = Math.hypot(L, h);
+    const wx = s * (L / len);
+    const wy = h - s * (h / len);
+    const px = toSX(wx), py = toSY(wy);
+
+    const pT = { x: toSX(0), y: toSY(h) };
+    const pB = { x: toSX(L), y: toSY(0) };
+    const dx = pB.x - pT.x, dy = pB.y - pT.y;
+    const dl = Math.hypot(dx, dy) || 1;
+    const nx =  dy / dl;
+    const ny = -dx / dl;
+    return { x: px + nx * r, y: py + ny * r };
+  }
+
+  /* ============================================================
+     通用绘制：地面 + 斜槽三角形
+     ============================================================ */
+  function drawBase(c, h, fill, stroke, lw) {
+    c.beginPath();
+    c.moveTo(toSX(-0.30), toSY(0));
+    c.lineTo(toSX(L + 0.15), toSY(0));
+    c.strokeStyle = '#a8b6c8';
+    c.lineWidth = 2;
+    c.stroke();
+
+    const pT = { x: toSX(0), y: toSY(h) };
+    const pB = { x: toSX(L), y: toSY(0) };
+    const pO = { x: toSX(0), y: toSY(0) };
+
+    c.beginPath();
+    c.moveTo(pT.x, pT.y);
+    c.lineTo(pB.x, pB.y);
+    c.lineTo(pO.x, pO.y);
+    c.closePath();
+    c.fillStyle = fill;
+    c.fill();
+    c.strokeStyle = stroke;
+    c.lineWidth = lw;
+    c.stroke();
+  }
+
+  /* ============================================================
+     顶部左：斜槽动画
+     ============================================================ */
+  const BALL_R_ANIM = 9;
+
+  function drawAnim() {
+    V = animView;
+    const c = V.ctx;
+    c.clearRect(0, 0, V.cw, V.ch);
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, V.cw, V.ch);
+
+    drawBase(c, state.h, '#dbeafe', '#2563eb', 2.2);
+
+    // 释放点标记
+    const p0 = getBallPos(0, state.h, BALL_R_ANIM);
+    c.beginPath();
+    c.arc(p0.x, p0.y, 3, 0, Math.PI * 2);
+    c.fillStyle = '#94a3b8';
+    c.fill();
+
+    // 运动小球
+    const p = getBallPos(state.s, state.h, BALL_R_ANIM);
+    const g = c.createRadialGradient(p.x - 3, p.y - 3, 1, p.x, p.y, BALL_R_ANIM);
+    g.addColorStop(0, '#ffc0c0');
+    g.addColorStop(1, '#dc2626');
+    c.beginPath();
+    c.arc(p.x, p.y, BALL_R_ANIM, 0, Math.PI * 2);
+    c.fillStyle = g;
+    c.fill();
+    c.strokeStyle = '#991b1b';
+    c.lineWidth = 1.4;
+    c.stroke();
+
+    // 高度虚线
+    c.save();
+    c.setLineDash([5, 4]);
+    c.strokeStyle = '#94a3b8';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(toSX(0), toSY(0));
+    c.lineTo(toSX(0), toSY(state.h));
+    c.stroke();
+    c.restore();
+
+    c.font = 'italic bold 13px "Times New Roman", serif';
+    c.fillStyle = '#64748b';
+    c.textAlign = 'right';
+    c.textBaseline = 'middle';
+    c.fillText('h', toSX(0) - 8, (toSY(0) + toSY(state.h)) / 2);
+  }
+
+  /* ============================================================
+     顶部右：实时 v-t 图像
+     ============================================================ */
+  function niceStep(raw) {
+    if (!(raw > 0)) return 1;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const n = raw / mag;
+    let s;
+    if (n <= 1)      s = 1;
+    else if (n <= 2) s = 2;
+    else if (n <= 5) s = 5;
+    else             s = 10;
+    return s * mag;
+  }
+
+  function arrowHead(c, x, y, angle, color) {
+    c.save();
+    c.translate(x, y);
+    c.rotate(angle);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(-9, 4.5);
+    c.lineTo(-9, -4.5);
+    c.closePath();
+    c.fillStyle = color;
+    c.fill();
+    c.restore();
+  }
+
+  function drawVT() {
+    const c = vtView.ctx;
+    const cw = vtView.cw, ch = vtView.ch;
+
+    c.clearRect(0, 0, cw, ch);
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, cw, ch);
+
+    const padL = 46, padR = 16, padT = 20, padB = 36;
+    const px0 = padL, px1 = cw - padR;
+    const py0 = ch - padB, py1 = padT;
+    const pw = px1 - px0, ph = py0 - py1;
+
+    const a = state.a, tEnd = state.tEnd;
+    if (!(a > 0) || !(tEnd > 0)) return;
+
+    const vEnd = a * tEnd;
+
+    const tStep  = niceStep(tEnd / 5);
+    const tTicks = Math.max(1, Math.ceil(tEnd / tStep - 1e-9));
+    const tAxis  = tTicks * tStep;
+
+    const vStep  = niceStep(vEnd / 5);
+    const vTicks = Math.max(1, Math.ceil(vEnd / vStep - 1e-9));
+    const vAxis  = vTicks * vStep;
+
+    const sx = pw / tAxis, sy = ph / vAxis;
+    const X = t => px0 + t * sx;
+    const Y = v => py0 - v * sy;
+
+    /* 浅色网格 */
+    c.strokeStyle = '#e9eef4';
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let i = 1; i <= tTicks; i++) {
+      const x = X(i * tStep);
+      c.moveTo(x, py0); c.lineTo(x, py1);
+    }
+    for (let i = 1; i <= vTicks; i++) {
+      const y = Y(i * vStep);
+      c.moveTo(px0, y); c.lineTo(px1, y);
+    }
+    c.stroke();
+
+    /* 红色坐标轴 */
+    const RED = '#e00000';
+    c.strokeStyle = RED;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(px0, py0); c.lineTo(px1, py0);
+    c.moveTo(px0, py0); c.lineTo(px0, py1);
+    c.stroke();
+
+    arrowHead(c, px1, py0, 0, RED);
+    arrowHead(c, px0, py1, Math.PI / 2, RED);
+
+    /* 刻度线 */
+    c.lineWidth = 1.4;
+    c.beginPath();
+    for (let i = 0; i <= tTicks; i++) {
+      const x = X(i * tStep);
+      c.moveTo(x, py0); c.lineTo(x, py0 + 5);
+    }
+    for (let i = 0; i <= vTicks; i++) {
+      const y = Y(i * vStep);
+      c.moveTo(px0, y); c.lineTo(px0 - 5, y);
+    }
+    c.stroke();
+
+    /* 刻度数值 */
+    c.font = '10.5px Consolas, Menlo, Arial';
+    c.fillStyle = '#c00000';
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    for (let i = 0; i <= tTicks; i++) {
+      c.fillText((i * tStep).toFixed(2), X(i * tStep), py0 + 9);
+    }
+    c.textAlign = 'right';
+    c.textBaseline = 'middle';
+    for (let i = 0; i <= vTicks; i++) {
+      c.fillText((i * vStep).toFixed(2), px0 - 8, Y(i * vStep));
+    }
+
+    /* 轴标签 */
+    c.font = 'italic bold 12.5px "Times New Roman", Times, serif';
+    c.fillStyle = '#c00000';
+    c.textAlign = 'right';
+    c.textBaseline = 'bottom';
+    c.fillText('t / s', px1 - 2, py0 - 6);
+
+    c.textAlign = 'left';
+    c.textBaseline = 'top';
+    c.fillText('v / (m·s⁻¹)', px0 + 6, py1 - 2);
+
+    /* 生长中的图线 */
+    const tNow = Math.min(state.simT, tEnd);
+    if (tNow > 0) {
+      c.save();
+      c.beginPath();
+      c.rect(px0, py1, pw, ph);
+      c.clip();
+
+      const N = 80;
+      c.beginPath();
+      c.moveTo(X(0), Y(0));
+      for (let i = 1; i <= N; i++) {
+        const t = tNow * i / N;
+        c.lineTo(X(t), Y(a * t));
+      }
+      c.strokeStyle = '#2563eb';
+      c.lineWidth = 2.4;
+      c.lineJoin = 'round';
+      c.stroke();
+      c.restore();
+    }
+
+    /* ---- 拍照时刻 (nT, aT) 的橙点 ---- */
+    c.save();
+    c.beginPath();
+    c.rect(px0, py1, pw, ph);
+    c.clip();
+
+    for (const f of state.flashes) {
+      if (f.t > state.simT + 1e-9) break;
+      if (f.t > tAxis + 1e-9) break;
+      const t = f.t;
+      const v = a * t;
+      const px = X(t), py = Y(v);
+      if (px < px0 - 8 || px > px1 + 8) continue;
+
+      c.beginPath();
+      c.arc(px, py, 3.8, 0, Math.PI * 2);
+      c.fillStyle = '#f97316';
+      c.fill();
+      c.strokeStyle = '#ffffff';
+      c.lineWidth = 1.3;
+      c.stroke();
+    }
+    c.restore();
+
+    /* 当前时刻标记点（红色，覆盖在橙点之上） */
+    if (tNow > 0) {
+      const cx = X(tNow), cy = Y(a * tNow);
+      if (cx <= px1 + 6) {
+        c.beginPath();
+        c.arc(cx, cy, 4.5, 0, Math.PI * 2);
+        c.fillStyle = '#dc2626';
+        c.fill();
+        c.strokeStyle = '#ffffff';
+        c.lineWidth = 1.4;
+        c.stroke();
+      }
+    }
+  }
+
+  /* ============================================================
+     中部：频闪照片
+     ============================================================ */
+  const BALL_R_FLASH = 12;
+  const SUBDIGITS = ['₀','₁','₂','₃','₄','₅','₆','₇','₈','₉'];
+  function sub(n) {
+    return String(n).split('').map(d => SUBDIGITS[+d]).join('');
+  }
+
+  function drawFlash(vis) {
+    V = flashView;
+    const c = V.ctx;
+    c.clearRect(0, 0, V.cw, V.ch);
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, V.cw, V.ch);
+
+    drawBase(c, state.h, '#f1f5f9', '#94a3b8', 2);
+
+    const positions = [0].concat(vis.map(f => f.s));
+
+    // 幽灵小球
+    for (let i = 0; i < positions.length; i++) {
+      const p = getBallPos(positions[i], state.h, BALL_R_FLASH);
+      c.beginPath();
+      c.arc(p.x, p.y, BALL_R_FLASH, 0, Math.PI * 2);
+      c.fillStyle = (i === 0) ? 'rgba(148,163,184,.45)' : 'rgba(220,38,38,.72)';
+      c.fill();
+      c.strokeStyle = (i === 0) ? '#94a3b8' : '#991b1b';
+      c.lineWidth = 1.3;
+      c.stroke();
+    }
+
+    // 位移标注
+    if (positions.length >= 2) drawDimensions(c, positions, state.h);
+  }
+
+  function drawDimensions(c, positions, h) {
+    const pT = { x: toSX(0), y: toSY(h) };
+    const pB = { x: toSX(L), y: toSY(0) };
+    const dx = pB.x - pT.x, dy = pB.y - pT.y;
+    const dl = Math.hypot(dx, dy) || 1;
+    const nx =  dy / dl;
+    const ny = -dx / dl;
+
+    const OFF  = 45;
+    const TICK = 5;
+
+    c.strokeStyle = '#059669';
+    c.fillStyle   = '#047857';
+    c.lineWidth   = 1.6;
+    c.font = 'bold 13px "Times New Roman", Times, serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+
+    for (let i = 0; i < positions.length - 1; i++) {
+      const A = getBallPos(positions[i],     h, 0);
+      const B = getBallPos(positions[i + 1], h, 0);
+
+      const A1 = { x: A.x + nx * OFF, y: A.y + ny * OFF };
+      const B1 = { x: B.x + nx * OFF, y: B.y + ny * OFF };
+
+      c.beginPath();
+      c.moveTo(A1.x, A1.y);
+      c.lineTo(B1.x, B1.y);
+      c.stroke();
+
+      c.beginPath();
+      c.moveTo(A1.x - nx * TICK, A1.y - ny * TICK);
+      c.lineTo(A1.x + nx * TICK, A1.y + ny * TICK);
+      c.moveTo(B1.x - nx * TICK, B1.y - ny * TICK);
+      c.lineTo(B1.x + nx * TICK, B1.y + ny * TICK);
+      c.stroke();
+
+      const mx = (A1.x + B1.x) / 2 + nx * 14;
+      const my = (A1.y + B1.y) / 2 + ny * 14;
+      c.fillText('s' + sub(i + 1), mx, my);
+    }
+  }
+
+  /* ============================================================
+     右下：数据表（转置 —— 每行一段，列为 s 与 Δs）
+     ============================================================ */
+  let lastTableN = -1;
+
+  function updateTable(N) {
+    if (N === lastTableN) return;
+    lastTableN = N;
+
+    const tbody = document.getElementById('tableBody');
+
+    if (N === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">开始演示后显示数据…</td></tr>';
+      return;
+    }
+
+    const a  = state.a;
+    const T  = state.T;
+    const ds = a * T * T;          // 恒为 aT²
+    const k  = 0.5 * a * T * T;
+
+    let html = '';
+    for (let i = 1; i <= N; i++) {
+      const si  = k * (2 * i - 1);
+      const dsi = (i < N) ? ds.toFixed(4) : '—';
+      html += '<tr>';
+      html += '<td>' + i + '</td>';
+      html += '<td>' + si.toFixed(4) + '</td>';
+      html += '<td>' + dsi + '</td>';
+      html += '</tr>';
+    }
+    tbody.innerHTML = html;
+  }
+
+  /* ============================================================
+     状态栏
+     ============================================================ */
+  function updateStatus() {
+    document.getElementById('statT').textContent = state.simT.toFixed(2);
+    document.getElementById('statS').textContent = state.s.toFixed(3);
+    document.getElementById('statV').textContent = (state.a * state.simT).toFixed(2);
+    document.getElementById('statA').textContent = state.a.toFixed(2);
+  }
+
+  /* ============================================================
+     总渲染
+     ============================================================ */
+  function render() {
+    const vis = getVisible();
+
+    fitView(animView, state.h);
+    fitView(flashView, state.h);
+
+    drawAnim();
+    drawVT();
+    drawFlash(vis);
+
+    updateTable(vis.length);
+    updateStatus();
+  }
+
+  /* ============================================================
+     重置 / 运行
+     ============================================================ */
+  function reset() {
+    state.running  = false;
+    state.finished = false;
+    state.simT = 0;
+    state.s    = 0;
+
+    updatePhysics();
+    state.flashes = computeFlashes();
+    lastTableN = -1;
+
+    render();
+  }
+
+  let runId = 0;
+
+  function start() {
+    state.running  = true;
+    state.finished = false;
+    state.lastFrame = performance.now();
+
+    const myId = ++runId;
+
+    function loop(now) {
+      if (!state.running || myId !== runId) return;
+
+      let dt = (now - state.lastFrame) / 1000;
+      state.lastFrame = now;
+      if (dt > 0.1) dt = 0.1;
+
+      state.simT += dt;
+
+      if (state.simT >= state.tEnd) {
+        state.simT = state.tEnd;
+        state.running  = false;
+        state.finished = true;
+      }
+
+      state.s = Math.min(0.5 * state.a * state.simT * state.simT, state.len);
+
+      render();
+
+      if (state.running) requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ============================================================
+     控件绑定
+     ============================================================ */
+  const hRange = document.getElementById('hRange');
+  const tRange = document.getElementById('tRange');
+  const hVal   = document.getElementById('hVal');
+  const tVal   = document.getElementById('tVal');
+
+  hRange.addEventListener('input', function () {
+    state.h = parseFloat(hRange.value);
+    hVal.textContent = state.h.toFixed(2) + ' m';
+    reset();
+  });
+
+  tRange.addEventListener('input', function () {
+    state.T = parseFloat(tRange.value);
+    tVal.textContent = state.T.toFixed(2) + ' s';
+    reset();
+  });
+
+  document.getElementById('btnRun').addEventListener('click', function () {
+    runId++;
+    reset();
+    start();
+  });
+
+  /* ============================================================
+     初始化
+     ============================================================ */
+  reset();
+
+})();
+</script>
+</body>
+</html>

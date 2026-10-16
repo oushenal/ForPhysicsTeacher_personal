@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="SK4cKKowQC7OXhYcmtS6uK">
+<head data-page-node-id="XtEqxI8bj0H5xgYWs0kieg">
+<meta charset="UTF-8" data-page-node-id="joGcLCra9Pwcx7HqxcZHTM">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="3uts9tlIyhbiTsEFso1R1x">
+<title>追及相遇问题演示 · 加速追匀速 / 减速追匀速</title>
+<style>
+  :root{
+    --bg:#f4f2ee;
+    --surface:#ffffff;
+    --ink:#1b1a18;
+    --ink2:#5a564f;
+    --ink3:#8d8880;
+    --line:#e3dfd8;
+    --line2:#cfcac1;
+    --A:#2f6fb5;
+    --A-soft:rgba(47,111,181,.10);
+    --B:#c2691c;
+    --B-soft:rgba(194,105,28,.10);
+    --danger:#b8342a;
+    --amber:#9a6b06;
+    --base:17px;
+    --fs:1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"HarmonyOS Sans SC","Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    font-size:calc(var(--base) * var(--fs));
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+    font-variant-numeric:tabular-nums;
+  }
+  .app{
+    height:100vh;
+    display:grid;
+    grid-template-rows:auto minmax(0,0.9fr) minmax(0,1.1fr);
+    gap:.6rem;
+    padding:.6rem;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .bar{
+    display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:.5rem .9rem;
+    box-shadow:0 1px 2px rgba(30,25,15,.04);
+  }
+  .brand{display:flex;align-items:baseline;gap:.55rem;margin-right:auto}
+  .brand h1{font-size:1.05rem;font-weight:700;letter-spacing:.02em}
+  .brand .sub{font-size:.72rem;color:var(--ink3)}
+  .brand .bar1{width:.28rem;height:1.02rem;border-radius:2px;background:var(--ink);
+    display:inline-block;transform:translateY(.13rem);margin-right:.1rem}
+
+  .seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+  .seg button{
+    font:inherit;font-size:.82rem;border:0;background:transparent;color:var(--ink2);
+    padding:.42rem .85rem;border-radius:6px;cursor:pointer;white-space:nowrap;transition:.15s;
+  }
+  .seg button:hover{color:var(--ink)}
+  .seg button.on{background:var(--ink);color:#fff;font-weight:600}
+
+  .trans{display:flex;align-items:center;gap:.45rem}
+  .btn{
+    font:inherit;font-size:.82rem;border:1px solid var(--line2);background:var(--surface);
+    color:var(--ink);padding:.42rem .9rem;border-radius:8px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--ink3);background:#faf9f7}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600;min-width:5.6rem}
+  .btn.primary:hover{background:#333}
+  .speeds{display:flex;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+  .speeds button{font:inherit;font-size:.75rem;border:0;background:transparent;color:var(--ink2);
+    padding:.4rem .5rem;border-radius:6px;cursor:pointer}
+  .speeds button.on{background:var(--surface);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+  /* 共速暂停开关 */
+  .sw{
+    display:flex;align-items:center;gap:.4rem;cursor:pointer;user-select:none;
+    padding:.3rem .55rem;border:1px solid var(--line);border-radius:8px;background:var(--bg);
+    transition:.15s;
+  }
+  .sw:hover{border-color:var(--ink3)}
+  .sw input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  .sw .tk{
+    width:2.05rem;height:1.12rem;border-radius:999px;background:#d8d3cb;position:relative;
+    flex:none;transition:background .18s;box-shadow:inset 0 1px 2px rgba(0,0,0,.12);
+  }
+  .sw .kn{
+    position:absolute;top:2px;left:2px;width:.86rem;height:.86rem;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .18s;
+  }
+  .sw input:checked + .tk{background:var(--ink)}
+  .sw input:checked + .tk .kn{transform:translateX(.93rem)}
+  .sw .lb{font-size:.78rem;color:var(--ink3);white-space:nowrap;transition:.15s}
+  .sw input:checked ~ .lb{color:var(--ink);font-weight:600}
+  .sw input:focus-visible + .tk{outline:2px solid var(--A);outline-offset:2px}
+  .sw.na{opacity:.55}                     /* 当前参数下没有可停的共速点 */
+  .sw.na:hover{opacity:.85}
+
+  /* 停在共速点时，开关自己变色 + 换字样（不额外占宽度，避免顶栏换行） */
+  .sw.fired{border-color:#e0c98a;background:#fdf3dd;animation:pulseTag 1.7s ease-in-out infinite}
+  .sw.fired .lb, .sw.fired input:checked ~ .lb{color:#8a5d05;font-weight:700}
+  .sw.fired .tk, .sw.fired input:checked + .tk{background:#c9962a}
+  @keyframes pulseTag{
+    0%,100%{opacity:1}
+    50%{opacity:.62}
+  }
+  @media (prefers-reduced-motion:reduce){ .sw.fired{animation:none} }
+
+  /* 停在共速点时给演示区加一圈提示环（纯 CSS，播放停下来也能动） */
+  .sceneWrap.starPause{
+    border-color:#e0c98a;
+    box-shadow:0 0 0 3px rgba(201,150,42,.16), 0 1px 2px rgba(30,25,15,.04);
+  }
+
+  /* ---------- 上半部分 ---------- */
+  .stage{
+    display:grid;grid-template-columns:minmax(0,1fr) 22.5rem;gap:.6rem;min-height:0;
+  }
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 1px 2px rgba(30,25,15,.04);min-height:0;
+  }
+  .sceneWrap{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  #scene{flex:1;min-height:0;width:100%;display:block}
+  .verdict{
+    border-top:1px solid var(--line);
+    padding:.55rem .95rem;
+    font-size:.86rem;line-height:1.45;color:var(--ink2);
+    display:flex;gap:.6rem;align-items:flex-start;background:#fbfaf8;
+  }
+  .verdict .mk{flex:0 0 auto;font-weight:700;font-size:.76rem;letter-spacing:.06em;
+    padding:.08rem .45rem;border-radius:4px;background:var(--A-soft);color:var(--A);margin-top:.14rem}
+  .verdict.warn .mk{background:rgba(184,52,42,.10);color:var(--danger)}
+  .verdict.ok .mk{background:rgba(154,107,6,.10);color:var(--amber)}
+  .verdict b{color:var(--ink);font-weight:700}
+
+  /* ---------- 控制面板 ---------- */
+  .panel{padding:.55rem .75rem;display:flex;flex-direction:column;gap:.34rem;overflow:auto}
+  .panel h2{font-size:.7rem;letter-spacing:.1em;color:var(--ink3);font-weight:700;margin-top:.1rem}
+  .readout{
+    display:flex;align-items:center;gap:.7rem;
+    border:1px solid var(--line);border-radius:8px;padding:.32rem .6rem;background:#fbfaf8;
+  }
+  .readout .dx .k{font-size:.68rem;color:var(--ink3);margin-bottom:.05rem}
+  .readout .dx .v{font-size:1.5rem;font-weight:700;line-height:1.08;color:var(--A)}
+  .readout.danger .dx .v{color:var(--danger)}
+  .readout.safe .dx .v{color:var(--amber)}
+  .readout.ahead .dx .v{color:var(--B)}      /* Δx 为负：A 已经跑到 B 前面 */
+  .stats{flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:.25rem;
+    border-left:1px solid var(--line);padding-left:.7rem}
+  .stats .k2{display:block;font-size:.64rem;color:var(--ink3);white-space:nowrap}
+  .stats b{font-size:.86rem;font-weight:700;color:var(--ink);white-space:nowrap}
+
+  .rows{display:flex;flex-direction:column;gap:.2rem}
+  .row{display:grid;grid-template-columns:6.4rem minmax(0,1fr) 4.5rem;align-items:center;gap:.45rem}
+  .row .name{font-size:.77rem;font-weight:600;color:var(--ink);white-space:nowrap}
+  .row .name i{font-style:normal;color:var(--ink3);font-size:.69rem}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:1.1rem;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;
+    background:var(--surface);border:2px solid var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18);
+  }
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--ink)}
+  .numBox{display:flex;align-items:center;gap:.1rem;border:1px solid var(--line2);border-radius:6px;
+    padding:.12rem .3rem;background:var(--surface)}
+  .numBox input{width:2.5rem;border:0;outline:0;font:inherit;font-size:.8rem;font-weight:700;text-align:right;background:transparent;color:var(--ink)}
+  .numBox .u{font-size:.64rem;color:var(--ink3)}
+
+  .stageFoot{
+    flex:0 0 auto;display:flex;align-items:center;gap:.55rem;
+    padding:.32rem .9rem;border-top:1px solid var(--line);background:#fbfaf8;
+  }
+  .sfLabel{font-size:.68rem;letter-spacing:.08em;color:var(--ink3);font-weight:700;white-space:nowrap}
+
+  .presets{display:flex;flex-wrap:nowrap;gap:.32rem}
+  .chip{
+    font:inherit;font-size:.72rem;border:1px dashed var(--line2);background:#fbfaf8;color:var(--ink2);
+    padding:.3rem .52rem;border-radius:7px;cursor:pointer;transition:.15s;
+  }
+  .chip:hover{border-style:solid;border-color:var(--ink3);color:var(--ink);background:#fff}
+  .chip.hi{border-color:var(--A);color:var(--A)}
+  .chip.hi:hover{background:var(--A-soft)}
+  .hint{flex:1;min-width:0;font-size:.67rem;color:var(--ink3);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;text-align:right}
+
+  /* ---------- 下半部分：三张图 ---------- */
+  .charts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;min-height:0}
+  figure{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 1px 2px rgba(30,25,15,.04);
+    display:flex;flex-direction:column;min-height:0;padding:.5rem .55rem .35rem;
+  }
+  figure figcaption{
+    display:flex;align-items:baseline;gap:.5rem;
+    font-size:.8rem;font-weight:700;padding:0 .3rem .35rem;
+  }
+  figure figcaption em{font-style:normal;font-size:.7rem;font-weight:400;color:var(--ink3)}
+  figure canvas{flex:1;min-height:0;width:100%;display:block}
+
+  /* ---------- 微调 ---------- */
+  .tweaks{position:fixed;right:1rem;bottom:1rem;z-index:20}
+  .tweaks .tbtn{
+    width:2.4rem;height:2.4rem;border-radius:50%;border:1px solid var(--line2);background:var(--surface);
+    font:inherit;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(30,25,15,.12);color:var(--ink)
+  }
+  .tweaks .tbody{
+    display:none;position:absolute;right:0;bottom:2.9rem;background:var(--surface);border:1px solid var(--line);
+    border-radius:9px;padding:.6rem .7rem;box-shadow:0 4px 18px rgba(30,25,15,.14);width:11rem
+  }
+  .tweaks.open .tbody{display:block}
+  .tweaks .tbody .k{font-size:.7rem;color:var(--ink3);margin-bottom:.35rem;letter-spacing:.06em}
+
+  /* 窄屏（老笔记本 / 投影常见 1280×720）压缩顶栏，避免换行把下半页挤出去 */
+  @media (max-width:1440px){
+    .bar{gap:.62rem;padding:.42rem .7rem}
+    .brand{gap:.42rem}
+    .brand h1{font-size:1rem}
+    .brand .sub{font-size:.68rem}
+    .seg button{padding:.42rem .66rem;font-size:.78rem}
+    .btn{padding:.42rem .7rem;font-size:.78rem}
+    .btn.primary{min-width:4.6rem}
+    .speeds button{padding:.4rem .42rem;font-size:.73rem}
+    .sw{padding:.28rem .46rem;gap:.34rem}
+    .sw .tk{width:1.9rem;height:1.05rem}
+    .sw input:checked + .tk .kn{transform:translateX(.85rem)}
+    .sw .kn{width:.79rem;height:.79rem}
+    .sw .lb{font-size:.73rem}
+  }
+  @media (max-width:1330px){
+    .brand .sub{display:none}          /* 最长的提示行，窄屏优先让位 */
+  }
+  @media (max-width:1180px){
+    body{overflow:auto}
+    .app{height:auto;min-height:100vh;grid-template-rows:auto auto auto}
+    .stage{grid-template-columns:minmax(0,1fr);}
+    .panel{max-height:none}
+    .stageFoot{flex-wrap:wrap}
+    .presets{flex-wrap:wrap}
+    .hint{text-align:left;white-space:normal;overflow:visible}
+    #scene{min-height:19rem}
+    .charts{grid-template-columns:1fr}
+    figure{min-height:16rem}
+  }
+</style>
+</head>
+<body data-page-node-id="8u314w6AOZvQSscgqnRH7q">
+<div class="app" data-page-node-id="HTMy3Hxbi5ssr87rya6dj2">
+
+  <!-- 顶栏 -->
+  <div class="bar" data-page-node-id="egziu0zyizZZ6YlfKiYMOl">
+    <div class="brand" data-page-node-id="16Yrw2cBmquqsf0lrruRSH">
+      <h1 data-page-node-id="ELXKE14BjCMrd8j3vpruRs"><span class="bar1" data-page-node-id="IduIoKTp9YUP25rukFacp3"></span>追及相遇演示</h1>
+      <span class="sub" data-page-node-id="ZUOZTfdBYO5pz5HDf6uzbT">速度相等即临界 · 空格 播放/暂停 · ←→ 逐帧 · R 回到起点</span>
+    </div>
+    <div class="seg" id="modeSeg" data-page-node-id="QH6PhOeEEqJHC52Rg0k055">
+      <button data-mode="accel" class="on" data-page-node-id="jbZAlYuWCiPExzz2GOMzCh">加速的 A 追匀速的 B</button>
+      <button data-mode="decel" data-page-node-id="rGPxy4quyRpn9fBc0a0AUD">减速的 A 追匀速的 B</button>
+    </div>
+    <div class="trans" data-page-node-id="hpLu6l2KqqiudUFqMPGdMT">
+      <button class="btn primary" id="playBtn" data-page-node-id="7vxS3tc2koOG1S1za6AJDl">▶ 播放</button>
+      <button class="btn" id="resetBtn" data-page-node-id="SixIRHSK25hLbAFbtu2Qkh">⟲ 回到起点</button>
+      <label class="sw" id="starSw" title="打开后，播放到「速度相等」或「相遇」的瞬间会自动停住；点「继续」再往下走。关掉则中途不停。" data-page-node-id="xN6ZEhQfliEXgjAUNRVb7J">
+        <input type="checkbox" id="starChk" checked data-page-node-id="J9EswfsWXPwsIZgScNB1Bu">
+        <span class="tk" data-page-node-id="YYIASCKZ7CWmEvyRWoPJeH"><span class="kn" data-page-node-id="xkYAbTGzd0o7WO55TX3ovJ"></span></span>
+        <span class="lb" data-page-node-id="IAOqEYldxwnBjQYgqVWpbK">关键点暂停</span>
+      </label>
+      <div class="speeds" id="spSeg" data-page-node-id="P15phb8cJMh4EnRKhkBvuv">
+        <button data-sp="0.5" data-page-node-id="LqfVYlhqb17jRaMMkcTTtn">0.5×</button>
+        <button data-sp="1" class="on" data-page-node-id="RNsUitXj0oFTAvGouTJSLr">1×</button>
+        <button data-sp="2" data-page-node-id="XJCW6cItFQtiCQVXF3IUVS">2×</button>
+        <button data-sp="4" data-page-node-id="xBc1GuTu1QBGciRjUo3Qjv">4×</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 上半部分：演示 + 参数 -->
+  <div class="stage" data-page-node-id="jbt417RrLlLgrtFPJfsjyw">
+    <div class="card sceneWrap" data-page-node-id="ZMEFLehJh7hLiKRuX5VHHn">
+      <canvas id="scene" data-page-node-id="epLIXeQSOGHfCPwPc4uj5q"></canvas>
+      <div class="stageFoot" data-page-node-id="HAEPQJKtDtGeCV7xesVqdG">
+        <span class="sfLabel" data-page-node-id="rl0Kxkj1r5mSidtJxXxGFF">临界情形</span>
+        <div class="presets" id="presets" data-page-node-id="92tRfiDye2oEYbRz6Tk9eE"></div>
+        <span class="hint" id="presetHint" data-page-node-id="8Q6AOBcBMi0iie5QgG2wqB"></span>
+      </div>
+      <div class="verdict" id="verdict" data-page-node-id="vZ5k2uBkUpUQD9wAP1EZ6u"><span class="mk" data-page-node-id="R0geTGFonLSjV8s1R134bH">结论</span><span id="verdictTxt" data-page-node-id="kwmT4AYDVAihgYbvvaUFNv"></span></div>
+    </div>
+
+    <div class="card panel" data-page-node-id="rmjffZrUKKkUU96FgNNoNH">
+            <h2 data-page-node-id="rmBeFFFH9kPeOHhC1a7M6n">实时读数</h2>
+      <div class="readout" id="readout" data-page-node-id="wFguzkwLvuFbAKb8Eerx4E">
+        <div class="dx" data-page-node-id="AAnmhu3AphHu8NHpbo4J8y"><div class="k" data-page-node-id="62tCtnLcBRwMzsfdypHWts">两物体间距 Δx</div><div class="v" id="dxVal" data-page-node-id="575G37HvS0mFbRlWRARCIi">20.0 m</div></div>
+        <div class="stats" data-page-node-id="cPAmQCmismUcJJUV6gM2DK">
+          <div data-page-node-id="OA6mMo6RlJptSSd2TGGfxI"><span class="k2" data-page-node-id="57x08nKQJDbpHm3Z4LjUAH">时间 t</span><b id="tVal" data-page-node-id="6XF8NuJkPbSejdRlCr9BMi">0.00 s</b></div>
+          <div data-page-node-id="isYRpheqTjgJqJY1JeK5mE"><span class="k2" data-page-node-id="DxUOkxuMBxU74Egrz6guVj">A 的速度</span><b id="vaVal" style="color:var(--A)" data-page-node-id="5z9m2dyVXRaFWS2QyNrOtE">4.0 m/s</b></div>
+          <div data-page-node-id="2b3hOCOLQEmK6IvmFyifae"><span class="k2" data-page-node-id="QVXnb3A19vDQi1wZ8jnpe2">B 的速度</span><b id="vbVal" style="color:var(--B)" data-page-node-id="e6Rtqf4QjHkApAjzIElgKy">12.0 m/s</b></div>
+        </div>
+      </div>
+
+      <h2 data-page-node-id="F1kCKlDRojmKHibRKhkjXb">参数调节</h2>
+      <div class="rows" data-page-node-id="Og3eJ9qf7NtaJdFT1FECrN">
+        <div class="row" data-page-node-id="QNpetBSBGGmhtGLwYtRlbG">
+          <span class="name" data-page-node-id="6eSeU2FXLMcD8x1LO3heRy">初始间距 <i data-page-node-id="eubS5hVCW3wdbjV36JX117">d₀</i></span>
+          <input type="range" id="d0R" min="2" max="120" step="0.5" value="20" data-page-node-id="bki72JQqmUt5BFPyy7fT7e">
+          <div class="numBox" data-page-node-id="rpow9fpnXu4fX1qwSk3FUH"><input type="number" id="d0N" step="0.5" value="20" data-page-node-id="TVbZxBcjho8V2p4yiRz4jb"><span class="u" data-page-node-id="QEocrRzy1XVxQ5u1FBlVFP">m</span></div>
+        </div>
+        <div class="row" data-page-node-id="c7RtdzjZNNnCy8XoojAnCR">
+          <span class="name" data-page-node-id="FvkIEUa49KmXtb5qoMNla5">A 初速度 <i data-page-node-id="79svkIqlViF8JRg7xvuOVo">v₁</i></span>
+          <input type="range" id="v1R" min="0" max="30" step="0.5" value="4" data-page-node-id="pghsZ1ukSWDIeCpuyfOgRA">
+          <div class="numBox" data-page-node-id="JwBaIBG0yfdRKSN7QnFFbR"><input type="number" id="v1N" step="0.5" value="4" data-page-node-id="2dQoSmVyve3Um5P4trW0xx"><span class="u" data-page-node-id="zsvVWgJckrMsYMs9DlrKw6">m/s</span></div>
+        </div>
+        <div class="row" data-page-node-id="XIs7No3H9ydbJoHHP0BT8F">
+          <span class="name" data-page-node-id="Y34qe8EnFEjUmS3PhO4cQZ">B 速度 <i data-page-node-id="yDRK0k31aDwx45avrZkKB8">v₂</i></span>
+          <input type="range" id="v2R" min="0" max="30" step="0.5" value="12" data-page-node-id="Ah6I7t6zzBgN7nMDBf4pzZ">
+          <div class="numBox" data-page-node-id="QJibrF3DjC1e2wmmcDYhuQ"><input type="number" id="v2N" step="0.5" value="12" data-page-node-id="xxjcscodkGyynCGcuFF4Vj"><span class="u" data-page-node-id="GjXtTJlh5TM1FJDaahUqy2">m/s</span></div>
+        </div>
+        <div class="row" data-page-node-id="tnmb06CLFkK6McAKJ5JkWr">
+          <span class="name" id="aName" data-page-node-id="mjW77KNDge0imhSG9GDwoB">A 加速度 <i data-page-node-id="bKeHDune8RtSE0uDFmkE81">a</i></span>
+          <input type="range" id="aR" min="0.2" max="6" step="0.1" value="2" data-page-node-id="qpjTRsCHsbjRyILJMLn9Lh">
+          <div class="numBox" data-page-node-id="leDcrs92d2dq3ntMknYEya"><input type="number" id="aN" step="0.1" value="2" data-page-node-id="EvL5zK5jDFHiUvOLoFKC0e"><span class="u" data-page-node-id="2xAlAQCP4lPTR340f7Ralo">m/s²</span></div>
+        </div>
+      </div>
+
+      
+    </div>
+  </div>
+
+  <!-- 下半部分：三张图 -->
+  <div class="charts" data-page-node-id="jZm3IFkDyyyJIq0qbAX705">
+    <figure data-page-node-id="no4zLIkP1lVEYBgXnrd3IX">
+      <figcaption data-page-node-id="vdWVhO7zL6MGwxhNtMPRlK">v–t 图 <em data-page-node-id="eCCiFVFMzOwFh7KgEcEPVG">两物体速度随时间</em></figcaption>
+      <canvas id="cvt" data-page-node-id="ZCKyDcFsfcnkBn0sDADnhV"></canvas>
+    </figure>
+    <figure data-page-node-id="j5RTl9Uj2N9a5hftYBnxjZ">
+      <figcaption data-page-node-id="5mvrAvJNe7WOUYaMyjJpR7">x–t 图 <em data-page-node-id="Sbe9JJyLsh6ayyQ8ZolW3P">两线纵向差 = 间距</em></figcaption>
+      <canvas id="cxt" data-page-node-id="a5Sk1RhnOfwv84enyEGNsj"></canvas>
+    </figure>
+    <figure data-page-node-id="T9N9EATAlM1qV31aqYD67R">
+      <figcaption data-page-node-id="KhU5BV0pEQgVPuNo7P0XFr">Δx–t 图 <em data-page-node-id="2L1CBj7Tjq6PwsxIQDCfIT">间距随时间</em></figcaption>
+      <canvas id="cdx" data-page-node-id="AijNHCJP6VBLQyNydLDU1f"></canvas>
+    </figure>
+  </div>
+</div>
+
+<div class="tweaks" id="tweaks" data-page-node-id="ElFmAJy92ETRLPeMuxFCP1">
+  <div class="tbody" data-page-node-id="F8pz3PbF64LoRLjsTprQZ9">
+    <div class="k" data-page-node-id="7J3nMzPP7cMLScinw9bGAl">投影字号</div>
+    <div class="seg" id="fsSeg" style="width:100%;justify-content:space-between" data-page-node-id="dY8cqEpGVSCscNpCPqBXBG">
+      <button data-fs="0.9" data-page-node-id="qFrIoVTwOmmA6HV42VAkJb">小</button>
+      <button data-fs="1" class="on" data-page-node-id="kyg1g8UIdMHNi3Sspi11AH">标准</button>
+      <button data-fs="1.18" data-page-node-id="FGG8LynXfgL7SeAE6pE0fk">大</button>
+    </div>
+  </div>
+  <button class="tbtn" id="tweakBtn" data-page-node-id="d1e8L5cmZHCshFO01szswG">Aa</button>
+</div>
+
+<script>
+/* =========================================================
+   追及相遇演示  —  A 追赶 B
+   A：起点 x=0，初速度 v1，加速度 a（加速模式 a>0；减速模式 a<0 且速度减到 0 后停住）
+   B：起点 x=d0，速度恒为 v2
+   间距  gap(t) = xB(t) - xA(t)
+   ========================================================= */
+
+const $ = s => document.querySelector(s);
+const fmt1 = x => (Math.abs(x) < 0.05 ? 0 : x).toFixed(1);
+const fmt2 = x => (Math.abs(x) < 0.005 ? 0 : x).toFixed(2);
+
+const CIRC = ['①', '②', '③'];   // 相遇次数的圈码
+
+const S = {
+  mode: 'accel',
+  d0: 24, v1: 0, v2: 10, a: 2,
+  sp: 1, t: 0, playing: false, fs: 1,
+  pauseAtKey: true,    // 开关：是否在关键点（共速 / 相遇）自动暂停
+  atKey: null          // 当前停在哪个关键点 {t,type,idx}；正在播放或未停住时为 null
+};
+const BASE_SECONDS = 12;      // 动画把物理过程压到约 12 秒放完
+
+let MD = null;                // 当前模型
+let raf = null, lastTs = 0;
+
+/* ---------------- 物理模型 ---------------- */
+function buildModel(){
+  const {mode, d0, v1, v2, a} = S;
+  const acc = mode === 'accel' ? a : -a;      // A 的加速度（带符号）
+  const braking = mode === 'decel';
+  const tStop = braking ? v1 / a : Infinity;  // A 减速到 0 的时刻
+
+  const clampT = t => Math.min(t, tStop);
+  const xA = t => { const tt = clampT(t); return v1 * tt + 0.5 * acc * tt * tt; };
+  const vA = t => Math.max(0, v1 + acc * clampT(t));
+  const xB = t => d0 + v2 * t;
+  const gap = t => xB(t) - xA(t);
+
+  // 速度相等（共速）时刻 —— 间距取极值的位置
+  let tStar = null, gapExt = null, extKind = null;
+  if (mode === 'accel' && v2 > v1) { tStar = (v2 - v1) / a; extKind = 'max'; }
+  if (braking && v1 > v2)          { tStar = (v1 - v2) / a; extKind = 'min'; }
+  if (tStar !== null) gapExt = gap(tStar);
+
+  /* ---- 相遇时刻：同一组参数下最多可能相遇三次 ----
+     ① A 还没停下时相遇：解 d₀ + (v₂−v₁)t + ½at² = 0，最多两根
+        （A 追上 B 一次、被 B 反超一次 —— 这就是「相遇两次」）
+     ② A 停下之后：A 冻在 x_stop 不动，若它停在 B 前头，B 会慢慢反过来追上它 */
+  const meets = [];
+  const addMeet = (t, post) => {
+    if (!(t > 1e-4)) return;
+    if (meets.some(o => Math.abs(o.t - t) < 1e-3)) return;   // 临界情形两根重合，只算一次
+    meets.push({t, post: !!post});
+  };
+  if (mode === 'accel'){
+    const D = v2 - v1;
+    addMeet((D + Math.sqrt(D * D + 2 * a * d0)) / a, false);   // 0.5a t² − D t − d₀ = 0 的正根
+  } else {
+    const D = v1 - v2;
+    if (D > 0){
+      const disc = D * D - 2 * a * d0;
+      if (disc > 1e-9){
+        const s = Math.sqrt(disc);
+        [(D - s) / a, (D + s) / a].forEach(t => { if (t <= tStop + 1e-9) addMeet(t, false); });
+      } else if (disc > -1e-7){
+        addMeet(D / a, false);
+      }
+    }
+    // A 停下那一刻还领先着 B（间距为负），才会被 B 慢慢追上来
+    const gStop = gap(tStop);
+    if (v2 > 1e-9 && gStop < -1e-9) addMeet(tStop + (-gStop) / v2, true);
+  }
+  meets.sort((p, q) => p.t - q.t);
+  const tCatch = meets.length ? meets[0].t : null;             // 首次相遇
+  const tCatch2 = meets.length > 1 ? meets[1].t : null;        // 第二次相遇
+
+  // 动画演到哪一刻：把所有「有戏」的时刻都覆盖进去，末尾再留一段尾巴
+  const evts = meets.map(o => o.t);
+  if (tStar !== null) evts.push(tStar);
+  if (isFinite(tStop)) evts.push(tStop);
+  const tLast = evts.length ? Math.max(...evts) : 0;
+  const tAnim = Math.max(2.2, Math.min(900, tLast + Math.max(1.2, tLast * 0.22)));
+  const tEnd  = Math.min(1200, tAnim * 1.35);
+  const tMax  = Math.max(xA(tEnd), xB(tEnd));
+
+  // 判定
+  const TOL = 0.15;
+  let kind;
+  if (!meets.length) kind = 'never';
+  else if (gapExt !== null && Math.abs(gapExt) <= TOL && extKind === 'min'
+           && Math.abs(meets[0].t - tStar) < 0.05) kind = 'critical';
+  else kind = 'meet';
+
+  // 关键点：动画会在这些时刻自动停住（共速点 + 每一次相遇）
+  const keys = meets
+    .map((o, i) => ({t: o.t, type: 'meet', idx: i, post: o.post, done: false}))
+    .filter(k => k.t < tAnim - 1e-6);
+  // 临界情形下「共速」和「相遇」是同一瞬间，只留相遇那一个关键点，免得停两次
+  if (tStar !== null && tStar > 1e-6 && tStar < tAnim - 1e-6
+      && !keys.some(k => Math.abs(k.t - tStar) < 2e-3))
+    keys.push({t: tStar, type: 'star', idx: -1, done: false});
+  keys.sort((p, q) => p.t - q.t);
+
+  return {mode, d0, v1, v2, a, acc, braking, tStop, xA, vA, xB, gap,
+          tStar, gapExt, extKind, meets, tCatch, tCatch2, tEnd, tAnim, tMax, kind, keys,
+          baseRate: tAnim / BASE_SECONDS};
+}
+
+/* ---------------- 结论文字 ---------------- */
+function verdictHTML(){
+  const m = MD;
+  const A = `<b style="color:var(--A)">A</b>`, B = `<b style="color:var(--B)">B</b>`;
+  let txt = '', cls = '';
+  const nr = m.meets.length;
+  if (m.mode === 'accel'){
+    if (m.v2 > m.v1){
+      txt = `${A} 出发时比 ${B} 慢，间距先被拉大；<b>t = ${fmt2(m.tStar)} s 速度相等</b>，此刻间距最大 `
+          + `<b>Δx<sub>max</sub> = ${fmt1(m.gapExt)} m</b>；之后 ${A} 更快，间距一路缩小，`
+          + `<b>t = ${fmt2(m.tCatch)} s 追上 ${B}</b>，此后越拉越远 —— 只相遇一次。`;
+    } else {
+      txt = `${A} 出发时就比 ${B} 快，间距从 ${fmt1(m.d0)} m 起单调减小，`
+          + `<b>t = ${fmt2(m.tCatch)} s 追上 ${B}</b>，此后越拉越远 —— 只相遇一次。`;
+    }
+    cls = 'ok';
+  } else {
+    if (m.v1 <= m.v2){
+      txt = `${A} 的初速度不大于 ${B}，只会越落越远，<b>不可能追上</b>。`;
+      cls = 'warn';
+    } else if (!nr){
+      const stop = isFinite(m.tStop) ? `，并在 t = ${fmt2(m.tStop)} s 停下` : '';
+      txt = `共速时刻 <b>t = ${fmt2(m.tStar)} s</b> 间距最小，<b>Δx<sub>min</sub> = ${fmt1(m.gapExt)} m &gt; 0</b>；`
+          + `此后 ${A} 比 ${B} 慢${stop}，间距重新拉大 → <b>追不上</b>。`;
+      cls = 'warn';
+    } else if (m.kind === 'critical'){
+      txt = `共速瞬间恰好接触（<b>t = ${fmt2(m.tStar)} s，Δx = 0</b>）——这就是 d₀ 的临界值；`
+          + `错过去以后 ${B} 更快，间距又被拉开，<b>只有这一次相遇</b>。`;
+      cls = 'ok';
+    } else if (nr === 1){
+      txt = `<b>t = ${fmt2(m.meets[0].t)} s 追上 ${B}</b>（此时 ${A} 还有 ${fmt1(m.vA(m.meets[0].t))} m/s，比 ${B} 快），`
+          + `${A} 超过 ${B}；此后 ${A} 越来越慢，${B} 再没有机会反超 → <b>只相遇一次</b>。`;
+      cls = 'warn';
+    } else {
+      const t1 = m.meets[0].t, t2 = m.meets[1].t;
+      const mid = (m.tStar !== null && m.tStar > t1 && m.tStar < t2)
+        ? `${A} 继续减速，<b>t = ${fmt2(m.tStar)} s 两者速度相等</b>，此后 ${B} 比 ${A} 快，于是 ${B} 反过来追上 ${A}，`
+        : '';
+      txt = `<b>t = ${fmt2(t1)} s 第一次相遇</b>（${A} 超过 ${B}）；${mid}`
+          + `<b>t = ${fmt2(t2)} s 第二次相遇</b> —— 同一组参数下 <b>相遇两次</b>。`;
+      if (nr > 2) txt += `此后 ${A} 停在原地，<b>t = ${fmt2(m.meets[2].t)} s 被 ${B} 追上（第三次相遇）</b>。`;
+      cls = 'warn';
+    }
+  }
+  $('#verdictTxt').innerHTML = txt;
+  $('#verdict').className = 'verdict ' + cls;
+}
+
+/* ---------------- 画布工具 ---------------- */
+function fit(cv){
+  const r = cv.getBoundingClientRect();
+  const w = Math.max(1, r.width), h = Math.max(1, r.height);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)){
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return {ctx, w, h};
+}
+function roundRect(ctx, x, y, w, h, r){
+  if (ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function niceStep(range, n){
+  const raw = range / Math.max(1, n);
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const c = raw / p;
+  return (c <= 1 ? 1 : c <= 2 ? 2 : c <= 5 ? 5 : 10) * p;
+}
+const F = px => (px * S.fs);
+
+/* ---------------- 场景动画 ---------------- */
+function drawScene(){
+  const cv = $('#scene');
+  const {ctx, w, h} = fit(cv);
+  const FONT = '"HarmonyOS Sans SC","Microsoft YaHei",sans-serif';
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+
+  const padL = F(58), padR = F(58);
+  const groundH = Math.min(F(104), h * 0.42);   // 地面带高度随画布自适应
+  const roadY = h - groundH;
+  const gapY  = roadY + groundH * 0.30;
+  const botY  = Math.min(roadY + groundH * 0.87, h - F(18));
+
+  const t = Math.min(S.t, MD.tAnim);
+  const xa = MD.xA(t), xb = MD.xB(t), va = MD.vA(t);
+  const gapNow = xb - xa;
+  const wMin = 0, wMax = MD.tMax * 1.06 + 1;
+  const X = x => padL + (x - wMin) / (wMax - wMin) * (w - padL - padR);
+  const pa = X(xa), pb = X(xb);
+  const metCnt = MD.meets.filter(o => o.t <= t + 1e-6).length;            // 到此刻为止相遇几次
+  const hold = Math.max(0.5, MD.tAnim * 0.09);                            // 相遇/共速角标停留一会儿
+  const hitIdx = MD.meets.findIndex(o => t >= o.t - 0.02 && t <= o.t + hold);
+  const hit = hitIdx >= 0 ? MD.meets[hitIdx] : null;
+
+  /* ---------- 地面 ---------- */
+  ctx.fillStyle = '#f4f2ee';
+  ctx.fillRect(0, roadY, w, h - roadY);
+  ctx.strokeStyle = '#c9c4bb'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, roadY + .75); ctx.lineTo(w, roadY + .75); ctx.stroke();
+
+  /* ---------- 顶行：说明 + 时间 ---------- */
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#8d8880';
+  ctx.font = `600 ${F(12.5)}px ${FONT}`;
+  ctx.fillText('速度对比　条长表示速度大小', F(16), F(19));
+  ctx.textAlign = 'right'; ctx.fillStyle = '#1b1a18';
+  ctx.font = `700 ${F(22)}px ${FONT}`;
+  const tTxt = `t = ${fmt2(t)} s`, tW = ctx.measureText(tTxt).width;
+  ctx.fillText(tTxt, w - F(16), F(19));
+  if (MD.meets.length){                       // 右上角随时能看到「相遇了几次」
+    ctx.font = `700 ${F(13)}px ${FONT}`;
+    ctx.fillStyle = metCnt ? '#b8342a' : '#a8a39b';
+    ctx.fillText(`已相遇 ${metCnt} / ${MD.meets.length} 次`, w - F(16) - tW - F(16), F(20));
+  }
+
+  /* ---------- 速度对比条 ---------- */
+  const vScale = Math.max(S.v1, S.v2, MD.vA(MD.tEnd), 0.6) * 1.05;
+  const barX = F(16) + F(92);
+  const barMaxW = Math.max(F(40), w - barX - F(102));
+  const barsTop = F(38);
+  const barAvail = Math.max(F(26), (roadY - F(74)) - barsTop);
+  const barH = Math.max(F(9), Math.min(F(17), barAvail * 0.36));
+  const barY1 = barsTop, barY2 = barsTop + barH + Math.max(F(5), barAvail * 0.18);
+  function speedBar(y, color, v, name){
+    ctx.fillStyle = '#ecebe7';
+    roundRect(ctx, barX, y, barMaxW, barH, barH / 2); ctx.fill();
+    const wpx = Math.max(barH * .55, v / vScale * barMaxW);
+    ctx.fillStyle = color;
+    roundRect(ctx, barX, y, wpx, barH, barH / 2); ctx.fill();
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#5a564f'; ctx.textAlign = 'right';
+    ctx.font = `600 ${F(12.5)}px ${FONT}`;
+    ctx.fillText(name, barX - F(9), y + barH / 2 + .5);
+    ctx.fillStyle = color; ctx.textAlign = 'left';
+    ctx.font = `700 ${F(13)}px ${FONT}`;
+    ctx.fillText(`${fmt1(v)} m/s`, barX + barMaxW + F(9), y + barH / 2 + .5);
+  }
+  speedBar(barY1, '#2f6fb5', va, 'A 追赶者');
+  speedBar(barY2, '#c2691c', S.v2, 'B 被追者');
+
+  /* ---------- 间距标注（数字直接写在标注线上） ---------- */
+  const gx0 = Math.min(pa, pb), gx1 = Math.max(pa, pb);
+  ctx.fillStyle = 'rgba(47,111,181,.07)';
+  ctx.fillRect(gx0, gapY - F(15), Math.max(1, gx1 - gx0), F(30));
+
+  ctx.save();
+  ctx.strokeStyle = '#b9b4ab'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(pa, roadY - F(2)); ctx.lineTo(pa, gapY + F(15)); ctx.stroke();
+  if (Math.abs(pb - pa) > 1.5){
+    ctx.beginPath(); ctx.moveTo(pb, roadY - F(2)); ctx.lineTo(pb, gapY + F(15)); ctx.stroke();
+  }
+  ctx.restore();
+
+  const labelTxt = `Δx = ${fmt1(gapNow)} m`;
+  ctx.font = `700 ${F(16)}px ${FONT}`;
+  const lw = ctx.measureText(labelTxt).width + F(20);
+  const midX = Math.max(F(62), Math.min(w - F(62), (gx0 + gx1) / 2));
+  const lx0 = midX - lw / 2, lx1 = midX + lw / 2;
+  const isDanger = Math.abs(gapNow) < 0.05;      // 只有真「接触」才标红；A 领先（Δx<0）不标红
+
+  ctx.strokeStyle = isDanger ? '#b8342a' : '#2f6fb5';
+  ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1.7;
+  if ((gx1 - gx0) > lw + F(28)){
+    ctx.beginPath(); ctx.moveTo(gx0, gapY); ctx.lineTo(lx0 - F(6), gapY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx1 + F(6), gapY); ctx.lineTo(gx1, gapY); ctx.stroke();
+    const s = F(6);
+    ctx.beginPath(); ctx.moveTo(gx0, gapY); ctx.lineTo(gx0 + s, gapY - s * .6); ctx.lineTo(gx0 + s, gapY + s * .6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(gx1, gapY); ctx.lineTo(gx1 - s, gapY - s * .6); ctx.lineTo(gx1 - s, gapY + s * .6); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = isDanger ? '#b8342a' : '#1b1a18';
+  roundRect(ctx, lx0, gapY - F(12), lw, F(24), F(6)); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(labelTxt, midX, gapY + .5);
+
+  /* ---------- 两个物体 ---------- */
+  const bh = Math.max(F(22), Math.min(F(38), roadY - F(78)));
+  const bw = bh * 1.37;
+  const overlap = Math.abs(pb - pa) < bw * 0.92;   // 接触瞬间把 A 抬起来，否则会被 B 完全遮住
+  function block(px, color, letter, flash, dy){
+    const top = roadY - bh - (dy || 0);
+    if (dy){                                        // 虚框标出 A 的真实着地点
+      roundRect(ctx, px - bw / 2, roadY - bh, bw, bh, F(8));
+      ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = '#b9b4ab'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+    }
+    roundRect(ctx, px - bw / 2, top, bw, bh, F(8));
+    ctx.fillStyle = color; ctx.fill();
+    if (flash){
+      ctx.strokeStyle = '#b8342a'; ctx.lineWidth = 2.5;
+      roundRect(ctx, px - bw / 2 - F(5), top - F(5), bw + F(10), bh + F(10), F(10));
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 ${Math.max(F(12), bh * 0.55)}px ${FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(letter, px, top + bh / 2 + F(1));
+  }
+  block(pb, '#c2691c', 'B', !!hit, 0);
+  block(pa, '#2f6fb5', 'A', false, overlap ? bh - F(14) : 0);
+
+  /* ---------- 底部：比例尺 + 状态徽标 ---------- */
+  const mPerPx = (wMax - wMin) / (w - padL - padR);
+  const niceM = niceStep(mPerPx * F(64), 1);
+  const sl = niceM / mPerPx;
+  ctx.strokeStyle = '#8d8880'; ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(F(16), botY); ctx.lineTo(F(16) + sl, botY);
+  ctx.moveTo(F(16), botY - F(5)); ctx.lineTo(F(16), botY + F(5));
+  ctx.moveTo(F(16) + sl, botY - F(5)); ctx.lineTo(F(16) + sl, botY + F(5));
+  ctx.stroke();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#8d8880';
+  ctx.font = `400 ${F(12)}px ${FONT}`;
+  ctx.fillText(`${niceM} m`, F(16) + sl + F(8), botY + .5);
+
+  let badge = null;
+  if (hit){
+    const n = MD.meets.length, i = hitIdx;
+    let tail;
+    if (hit.post)       tail = ' · A 已停下，被 B 追上';
+    else if (i < n - 1) tail = ' · A 超过 B';
+    else if (n === 1)   tail = ' · A 超过 B 后越拉越远';
+    else                tail = ' · B 反超 A';
+    badge = { txt: (n > 1 ? `第 ${i + 1} 次相遇` : '相遇') + tail, c: '#b8342a' };
+  } else if (MD.tStar !== null && t >= MD.tStar - 0.02 && t <= MD.tStar + hold){
+    badge = { txt: MD.extKind === 'max' ? '共速时刻 · 此刻间距最大' : '共速时刻 · 此刻间距最小', c: '#9a6b06' };
+  }
+  if (badge){
+    ctx.font = `700 ${F(13)}px ${FONT}`;
+    const tw = ctx.measureText(badge.txt).width;
+    ctx.fillStyle = badge.c + '1f';
+    roundRect(ctx, w - F(16) - tw - F(22), botY - F(13), tw + F(22), F(26), F(6)); ctx.fill();
+    ctx.fillStyle = badge.c; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(badge.txt, w - F(16) - F(11), botY + .5);
+  }
+}
+
+/* ---------------- 图表 ---------------- */
+function frame(cv){
+  const {ctx, w, h} = fit(cv);
+  ctx.clearRect(0, 0, w, h);
+  return {ctx, w, h};
+}
+function axisScale(ctx, w, h, tEnd, yMin, yMax, yFmt, xUnit){
+  const padL = F(54), padR = F(14), padT = F(22), padB = F(28);
+  const x0 = padL, x1 = w - padR, y0 = h - padB, y1 = padT;
+  const X = t => x0 + (t / tEnd) * (x1 - x0);
+  const Y = v => y0 - ((v - yMin) / (yMax - yMin || 1)) * (y0 - y1);
+
+  ctx.font = `400 ${F(11.5)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+  ctx.strokeStyle = '#ecebe6'; ctx.lineWidth = 1;
+  const ys = niceStep(yMax - yMin, 4);
+  for (let v = Math.ceil(yMin / ys) * ys; v <= yMax + 1e-9; v += ys){
+    const yy = Y(v);
+    ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke();
+    ctx.fillStyle = '#8d8880'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(yFmt(v), x0 - F(6), yy);
+  }
+  const xs = niceStep(tEnd, 5);
+  for (let t = 0; t <= tEnd + 1e-9; t += xs){
+    const xx = X(t);
+    ctx.beginPath(); ctx.moveTo(xx, y0); ctx.lineTo(xx, y1); ctx.stroke();
+    ctx.fillStyle = '#8d8880'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(t >= 10 ? t.toFixed(0) : t.toFixed(1), xx, y0 + F(5));
+  }
+  ctx.strokeStyle = '#c5c0b7'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.stroke();
+
+  ctx.fillStyle = '#8d8880'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.font = `400 ${F(11.5)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+  ctx.fillText(xUnit, x0 + F(4), y1 - F(14));
+  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText('t / s', x1, h - F(2));
+  return {X, Y, x0, x1, y0, y1, padT};
+}
+function line(ctx, X, Y, fn, n, color, width, dash){
+  ctx.save();
+  if (dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++){
+    const t = MD.tEnd * i / n, px = X(t), py = Y(fn(t));
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.stroke(); ctx.restore();
+}
+function cursor(ctx, X, t, pts){
+  const xx = X(t);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(27,26,24,.55)'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(xx, pts.y1); ctx.lineTo(xx, pts.y0); ctx.stroke();
+  ctx.restore();
+  return xx;
+}
+function dot(ctx, x, y, color, r){
+  ctx.beginPath(); ctx.arc(x, y, r || F(3.5), 0, Math.PI * 2);
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.stroke();
+}
+
+function drawVT(){
+  const {ctx, w, h} = frame($('#cvt'));
+  const vmax = Math.max(S.v1, S.v2, MD.vA(MD.tEnd)) * 1.22 + 0.5;
+  const yMin = 0, yMax = vmax;
+  const P = axisScale(ctx, w, h, MD.tEnd, yMin, yMax,
+    v => v.toFixed(0), 'v /(m·s⁻¹)');
+
+  // 共速虚线
+  if (MD.tStar !== null && MD.tStar <= MD.tEnd){
+    const xx = P.X(MD.tStar), yy = P.Y(0);
+    ctx.save(); ctx.strokeStyle = '#9a6b06'; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(P.x0, P.Y(S.v2)); ctx.lineTo(xx, P.Y(S.v2)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xx, P.Y(S.v2)); ctx.lineTo(xx, P.y0); ctx.stroke(); ctx.restore();
+    // 共速点
+    dot(ctx, xx, P.Y(S.v2), '#9a6b06', F(4));
+    ctx.fillStyle = '#9a6b06'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.font = `700 ${F(11)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+    ctx.fillText(`共速 ${fmt2(MD.tStar)} s`, xx + F(5), P.Y(S.v2) - F(4));
+  }
+
+  line(ctx, P.X, P.Y, t => S.v2, 2, '#c2691c', 2.2);
+  line(ctx, P.X, P.Y, t => MD.vA(t), 200, '#2f6fb5', 2.6);
+
+  ctx.font = `700 ${F(12)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const endA = MD.vA(MD.tEnd), endB = S.v2;
+  ctx.fillStyle = '#2f6fb5';
+  ctx.fillText('A（追赶者）', P.X(MD.tEnd * .06), P.Y(endA) - F(16) < P.padT ? P.padT : P.Y(endA) - F(16));
+  ctx.fillStyle = '#c2691c';
+  ctx.fillText('B（被追者）', P.X(MD.tEnd * .06), P.Y(endB) + F(4));
+
+  MD.meets.forEach((o, i) => {                  // 每一次相遇都画一条竖虚线
+    if (o.t > MD.tEnd) return;
+    const xx = P.X(o.t);
+    ctx.save(); ctx.strokeStyle = '#b8342a'; ctx.lineWidth = 1.2; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(xx, P.y1); ctx.lineTo(xx, P.y0); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = '#b8342a'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.font = `700 ${F(11)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+    ctx.fillText(MD.meets.length > 1 ? `相遇${CIRC[i] || i + 1}` : '相遇',
+                 xx, P.y1 + F(1) + (i % 2) * F(13));   // 两次挨得近就上下错开
+  });
+
+  const tc = Math.min(S.t, MD.tAnim);
+  cursor(ctx, P.X, tc, P);
+  dot(ctx, P.X(tc), P.Y(S.v2), '#c2691c');
+  dot(ctx, P.X(tc), P.Y(MD.vA(tc)), '#2f6fb5');
+}
+
+function drawXT(){
+  const {ctx, w, h} = frame($('#cxt'));
+  const yMax = Math.max(MD.xA(MD.tEnd), MD.xB(MD.tEnd)) * 1.08 + 1;
+  const P = axisScale(ctx, w, h, MD.tEnd, 0, yMax, v => v.toFixed(0), 'x / m');
+
+  // 两线之间的填充 = 间距
+  const N = 200;
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++){ const t = MD.tEnd * i / N; i ? ctx.lineTo(P.X(t), P.Y(MD.xA(t))) : ctx.moveTo(P.X(t), P.Y(MD.xA(t))); }
+  for (let i = N; i >= 0; i--){ const t = MD.tEnd * i / N; ctx.lineTo(P.X(t), P.Y(MD.xB(t))); }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(47,111,181,.09)'; ctx.fill();
+
+  line(ctx, P.X, P.Y, t => MD.xB(t), 2, '#c2691c', 2.4);
+  line(ctx, P.X, P.Y, t => MD.xA(t), 200, '#2f6fb5', 2.6);
+
+  ctx.font = `700 ${F(12)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillStyle = '#2f6fb5';
+  ctx.fillText('A', P.X(MD.tEnd * .05), P.Y(MD.xA(MD.tEnd * .05)) - F(7));
+  ctx.fillStyle = '#c2691c';
+  ctx.textBaseline = 'top';
+  ctx.fillText('B', P.X(MD.tEnd * .05), P.Y(MD.xB(MD.tEnd * .05)) + F(7));
+
+  MD.meets.forEach((o, i) => {                  // 两条线每次相交 = 一次相遇
+    if (o.t > MD.tEnd) return;
+    const xx = P.X(o.t);
+    ctx.save(); ctx.strokeStyle = '#b8342a'; ctx.lineWidth = 1.2; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(xx, P.y1); ctx.lineTo(xx, P.y0); ctx.stroke(); ctx.restore();
+    dot(ctx, xx, P.Y(MD.xA(o.t)), '#b8342a', F(4));
+    ctx.fillStyle = '#b8342a'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.font = `700 ${F(11)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+    ctx.fillText(MD.meets.length > 1 ? `位置相同${CIRC[i] || i + 1}` : '位置相同',
+                 xx, P.y1 + F(1) + (i % 2) * F(13));
+  });
+
+  const tc = Math.min(S.t, MD.tAnim);
+  cursor(ctx, P.X, tc, P);
+  dot(ctx, P.X(tc), P.Y(MD.xB(tc)), '#c2691c');
+  dot(ctx, P.X(tc), P.Y(MD.xA(tc)), '#2f6fb5');
+  // 纵向间距提示
+  const xx = P.X(tc);
+  ctx.save(); ctx.strokeStyle = '#2f6fb5'; ctx.lineWidth = 1.6; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(xx, P.Y(MD.xA(tc))); ctx.lineTo(xx, P.Y(MD.xB(tc))); ctx.stroke(); ctx.restore();
+}
+
+function drawDX(){
+  const {ctx, w, h} = frame($('#cdx'));
+  const N = 220;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i <= N; i++){ const g = MD.gap(MD.tEnd * i / N); lo = Math.min(lo, g); hi = Math.max(hi, g); }
+  hi = Math.max(hi, MD.gap(0));
+  const span = Math.max(hi - Math.min(lo, 0), 1);
+  const yMax = hi + span * .16;
+  const yMin = Math.min(lo, 0) - span * .16;
+  const P = axisScale(ctx, w, h, MD.tEnd, yMin, yMax, v => v.toFixed(0), 'Δx / m');
+
+  // 零线
+  ctx.save(); ctx.strokeStyle = '#b8342a'; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(P.x0, P.Y(0)); ctx.lineTo(P.x1, P.Y(0)); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#b8342a'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.font = `400 ${F(10.5)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+  ctx.fillText('0（接触）', P.x0 + F(4), P.Y(0) - F(3));
+
+  // 面积
+  ctx.beginPath();
+  ctx.moveTo(P.X(0), P.Y(0));
+  for (let i = 0; i <= N; i++){ const t = MD.tEnd * i / N; ctx.lineTo(P.X(t), P.Y(MD.gap(t))); }
+  ctx.lineTo(P.X(MD.tEnd), P.Y(0)); ctx.closePath();
+  ctx.fillStyle = 'rgba(47,111,181,.10)'; ctx.fill();
+
+  line(ctx, P.X, P.Y, t => MD.gap(t), N, '#2f6fb5', 2.6);
+
+  // 极值点
+  if (MD.tStar !== null && MD.tStar <= MD.tEnd){
+    const xx = P.X(MD.tStar), yy = P.Y(MD.gapExt), isMax = MD.extKind === 'max';
+    dot(ctx, xx, yy, '#9a6b06', F(4.5));
+    ctx.fillStyle = '#9a6b06'; ctx.font = `700 ${F(11)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = isMax ? 'bottom' : 'top';
+    ctx.fillText(`${isMax ? '最大' : '最小'} ${fmt1(MD.gapExt)} m`, xx, yy + (isMax ? -F(7) : F(7)));
+  }
+  MD.meets.forEach((o, i) => {                  // 间距曲线每次回到 0 = 一次相遇
+    if (o.t > MD.tEnd) return;
+    const xx = P.X(o.t), up = i % 2 === 0;
+    dot(ctx, xx, P.Y(0), '#b8342a', F(4));
+    ctx.fillStyle = '#b8342a'; ctx.textAlign = 'center';
+    ctx.textBaseline = up ? 'bottom' : 'top';
+    ctx.font = `700 ${F(11)}px "HarmonyOS Sans SC","Microsoft YaHei",sans-serif`;
+    ctx.fillText(`Δx=0  ${fmt2(o.t)} s`, xx, P.Y(0) + (up ? -F(8) : F(8)));
+  });
+
+  const tc = Math.min(S.t, MD.tAnim);
+  cursor(ctx, P.X, tc, P);
+  dot(ctx, P.X(tc), P.Y(MD.gap(tc)), '#2f6fb5');
+}
+
+/* ---------------- 主循环 ---------------- */
+function renderAll(){
+  drawScene(); drawVT(); drawXT(); drawDX();
+  const t = Math.min(S.t, MD.tAnim);
+  $('#tVal').textContent = fmt2(t) + ' s';
+  const gapNow = MD.gap(t);
+  $('#dxVal').textContent = fmt1(gapNow) + ' m';
+  const box = $('#readout');
+  box.classList.toggle('danger', Math.abs(gapNow) < 0.08);        // 正在相遇的那一刻
+  box.classList.toggle('safe', gapNow > 0.08 && MD.kind === 'never');
+  box.classList.toggle('ahead', gapNow < -0.08);                  // A 已跑到 B 前面：Δx 为负
+  $('#vaVal').textContent = fmt1(MD.vA(t)) + ' m/s';
+  $('#vbVal').textContent = fmt1(S.v2) + ' m/s';
+}
+/* ---- 关键点暂停：共速点 + 每一次相遇 ----
+   MD.keys 里只留下「落在本次演示时间范围内」的关键点；
+   每次起播只拦还没走过的那些，所以「继续」之后不会再在同一个点上停第二次。 */
+function keysValid(){ return !!MD && MD.keys.length > 0; }
+function rearmKeys(){
+  if (!MD){ S.atKey = null; return; }
+  MD.keys.forEach(k => { k.done = !(S.pauseAtKey && k.t > S.t + 1e-4); });
+  S.atKey = null;
+}
+/* 关键点的简称：共速 / 相遇② */
+function keyName(k){
+  if (k.type === 'star') return '共速';
+  return MD.meets.length > 1 ? `相遇${CIRC[k.idx] || k.idx + 1}` : '相遇';
+}
+
+/* 播放按钮 / 开关状态 / 演示区提示环，统一在这里刷新，避免多处各写一份 */
+function syncPlayUI(){
+  const b = $('#playBtn');
+  const at = (!S.playing && S.atKey) ? S.atKey : null;
+  if (S.playing)       b.textContent = '❚❚ 暂停';
+  else if (at)         b.textContent = `▶ 继续（${keyName(at)}）`;
+  else if (!MD || S.t >= MD.tAnim - 1e-6) b.textContent = '▶ 重播';
+  else if (S.t > 1e-9) b.textContent = '▶ 继续';
+  else                 b.textContent = '▶ 播放';
+
+  const scene = $('.sceneWrap');
+  if (scene) scene.classList.toggle('starPause', !!at);
+  const box = $('#starSw');
+  if (box){                                   // 开关自己显示状态，不额外占顶栏宽度
+    box.classList.toggle('fired', !!at);
+    const lb = box.querySelector('.lb');
+    if (lb) lb.textContent = at ? `已停在${at.type === 'star' ? '共速点' : '相遇点'}` : '关键点暂停';
+  }
+}
+
+/* 开关的悬停说明随参数变化 —— 让老师知道「这次会停几次、停在哪儿」 */
+function updateKeyHint(){
+  const box = $('#starSw'); if (!box || !MD) return;
+  const ok = keysValid();
+  box.classList.toggle('na', !ok);            // 当前参数没有可停的关键点 → 淡显
+  if (!ok){
+    box.title = '当前参数下没有可停的关键点'
+      + (S.mode === 'decel' ? '（A 的初速度不大于 B，只会越落越远）' : '')
+      + '，播放时中途不会停顿。';
+    return;
+  }
+  const list = MD.keys.map(k => k.type === 'star'
+    ? `t = ${fmt2(k.t)} s 速度相等`
+    : `t = ${fmt2(k.t)} s 第 ${k.idx + 1} 次相遇`).join('、');
+  box.title = `播放到 ${list} 会自动停住，点「继续」或按空格再往下走。`;
+}
+
+/* 停住：key 是关键点就精确停在那一刻，key 为 null 表示停在动画终点 */
+function hold(key){
+  if (key){ S.t = key.t; key.done = true; }
+  else S.t = MD.tAnim;
+  S.atKey = key || null;
+  S.playing = false;
+  if (raf){ cancelAnimationFrame(raf); raf = null; }
+  renderAll();
+  syncPlayUI();
+}
+function loop(ts){
+  if (!S.playing) return;
+  const dt = Math.min(0.05, (ts - lastTs) / 1000) || 0;
+  lastTs = ts;
+  const prev = S.t;
+  const nt = Math.min(MD.tAnim, S.t + dt * MD.baseRate * S.sp);
+
+  // 跨过关键点（共速 / 相遇）→ 精确停在那一刻，等用户点「继续」
+  // 用 prev→nt 这个区间来找，4× 倍速一帧跳过好几个点也不会漏
+  const hit = MD.keys.find(k => !k.done && k.t > prev + 1e-6 && k.t <= nt + 1e-9);
+  if (hit) return hold(hit);
+
+  S.t = nt;
+  renderAll();
+  if (S.t >= MD.tAnim - 1e-6) return hold(null);
+  raf = requestAnimationFrame(loop);
+}
+function play(){
+  if (!MD) return;
+  if (S.t >= MD.tAnim - 1e-6) S.t = 0;      // 播完后再点 = 从头重播
+  if (S.playing) return;
+  rearmKeys();                              // 从当前位置起播，只拦还没走过的关键点
+  S.playing = true; lastTs = performance.now();
+  syncPlayUI();
+  raf = requestAnimationFrame(loop);
+}
+function pause(){
+  S.playing = false;
+  if (raf) cancelAnimationFrame(raf), raf = null;
+  syncPlayUI();
+}
+function reset(){
+  pause();
+  S.t = 0;
+  rearmKeys();
+  syncPlayUI();
+  renderAll();
+}
+
+/* ---------------- 参数绑定 ---------------- */
+function rebuild(keepT){
+  MD = buildModel();
+  if (!keepT) S.t = 0;
+  S.t = Math.min(S.t, MD.tAnim);
+  rearmKeys();                       // 参数变了 → 关键点也变了，重新判定要拦哪几个
+  verdictHTML(); buildPresets(); renderAll();
+  syncPlayUI(); updateKeyHint();
+}
+function bindPair(rid, nid, key, min, max, step){
+  const r = $('#' + rid), n = $('#' + nid);
+  const set = (val, fromInput) => {
+    let v = parseFloat(val); if (!isFinite(v)) return;
+    v = Math.max(min, Math.min(max, v));
+    S[key] = v;
+    if (!fromInput) n.value = String(v);
+    r.value = String(v);
+    rebuild(false);
+  };
+  r.addEventListener('input', e => set(e.target.value, false));
+  n.addEventListener('change', e => set(e.target.value, true));
+}
+function syncInputs(){
+  $('#d0R').value = S.d0; $('#d0N').value = S.d0;
+  $('#v1R').value = S.v1; $('#v1N').value = S.v1;
+  $('#v2R').value = S.v2; $('#v2N').value = S.v2;
+  $('#aR').value = S.a;   $('#aN').value = S.a;
+  $('#aName').innerHTML = S.mode === 'accel' ? 'A 加速度 <i>a</i>' : 'A 减速度 <i>a</i>';
+  document.querySelectorAll('#modeSeg button').forEach(b =>
+    b.classList.toggle('on', b.dataset.mode === S.mode));
+}
+
+/* ---------------- 一键临界 ---------------- */
+const clampD0 = v => Math.min(120, Math.max(2, Math.round(v * 10) / 10));
+/* 让 A 的初速度确实大于 B，否则减速档根本不是「追」 */
+function ensureFaster(){ if (S.v1 <= S.v2) S.v1 = Math.min(30, S.v2 + 6); }
+
+const PRESETS = {
+  accel: [
+    { label: 'A 从静止起步', hi: true, run(){ S.v1 = 0; }},
+    { label: 'A 与 B 同速起跑', run(){ S.v1 = S.v2; }},
+    { label: 'A 起步就比 B 快', run(){ S.v1 = Math.min(30, S.v2 + 4); }}
+  ],
+  decel: [
+    { label: '临界：恰好接触一次', hi: true, run(){
+        ensureFaster();
+        S.d0 = clampD0((S.v1 - S.v2) ** 2 / (2 * S.a));
+      }},
+    { label: '追不上：还剩余量', run(){
+        ensureFaster();
+        S.d0 = clampD0((S.v1 - S.v2) ** 2 / (2 * S.a) * 1.4);
+      }},
+    { label: '相遇两次：追上又被反超', run(){
+        ensureFaster();
+        S.d0 = clampD0((S.v1 - S.v2) ** 2 / (2 * S.a) * 0.55);
+      }},
+    { label: '减速慢：两次隔得久', run(){
+        ensureFaster();
+        S.a = 0.6;
+        S.d0 = clampD0((S.v1 - S.v2) ** 2 / (2 * S.a) * 0.55);
+      }}
+  ]
+};
+let builtPresetMode = null;
+function buildPresets(){
+  if (builtPresetMode === S.mode) return;
+  builtPresetMode = S.mode;
+  const host = $('#presets');
+  host.innerHTML = '';
+  PRESETS[S.mode].forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (p.hi ? ' hi' : '');
+    b.textContent = p.label;
+    b.addEventListener('click', () => { p.run(); syncInputs(); rebuild(false); });
+    host.appendChild(b);
+  });
+  $('#presetHint').textContent = S.mode === 'accel'
+    ? '共速前间距被拉大，共速后开始缩小——追上一次之后 A 越来越快，只会相遇一次。'
+    : '临界 d₀ = (v₁−v₂)²/2a：取大了追不上；取小了会追上，再小一些就能相遇两次。';
+}
+
+/* ---------------- 事件 ---------------- */
+$('#modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.mode = b.dataset.mode;
+  if (S.mode === 'accel'){ S.v1 = 0;  S.v2 = 10; S.a = 2; S.d0 = 24; }
+  else                    { S.v1 = 20; S.v2 = 10; S.a = 2; S.d0 = 30; }
+  syncInputs(); rebuild(false);
+});
+$('#spSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.sp = parseFloat(b.dataset.sp);
+  document.querySelectorAll('#spSeg button').forEach(x => x.classList.toggle('on', x === b));
+});
+$('#playBtn').addEventListener('click', () => S.playing ? pause() : play());
+$('#resetBtn').addEventListener('click', () => reset());
+
+/* 关键点暂停开关（共速点 + 每一次相遇） */
+$('#starChk').addEventListener('change', e => {
+  S.pauseAtKey = e.target.checked;
+  rearmKeys();               // 打开时若还没走过关键点，本次播放就会拦
+  syncPlayUI();
+  updateKeyHint();
+});
+
+$('#tweakBtn').addEventListener('click', () => $('#tweaks').classList.toggle('open'));
+$('#fsSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.fs = parseFloat(b.dataset.fs);
+  document.documentElement.style.setProperty('--fs', S.fs);
+  document.querySelectorAll('#fsSeg button').forEach(x => x.classList.toggle('on', x === b));
+  renderAll();
+});
+
+bindPair('d0R', 'd0N', 'd0', 2, 120, 0.5);
+bindPair('v1R', 'v1N', 'v1', 0, 30, 0.5);
+bindPair('v2R', 'v2N', 'v2', 0, 30, 0.5);
+bindPair('aR', 'aN', 'a', 0.2, 6, 0.1);
+
+/* 键盘：空格播放/暂停，R 回到起点，方向键微调时间 */
+window.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'button') { if (e.code !== 'Space') return; }
+  if (e.code === 'Space'){ e.preventDefault(); S.playing ? pause() : play(); }
+  else if (e.key === 'r' || e.key === 'R'){ e.preventDefault(); reset(); }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
+    e.preventDefault();
+    if (!MD) return;
+    pause();
+    const d = MD.tAnim / 60;
+    S.t = Math.max(0, Math.min(MD.tAnim, S.t + (e.key === 'ArrowRight' ? d : -d)));
+    S.atKey = null;                 // 手动微调后就不再算「停在关键点」
+    renderAll(); syncPlayUI();
+  }
+});
+
+let rt = null;
+window.addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { if (MD) renderAll(); }, 120);
+});
+if (window.ResizeObserver){
+  const ro = new ResizeObserver(() => { if (MD) renderAll(); });
+  ['#scene', '#cvt', '#cxt', '#cdx'].forEach(s => ro.observe($(s)));
+}
+
+/* 启动 */
+syncInputs();
+rebuild(false);
+requestAnimationFrame(() => renderAll());
+</script>
+</body>
+</html>
