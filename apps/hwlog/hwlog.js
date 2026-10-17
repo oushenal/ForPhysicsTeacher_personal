@@ -11,9 +11,10 @@
          '#/hwlog/<班名>'              该班作业批次列表
          '#/hwlog/<班名>/<assignmentId>' 打钩录入
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=28';
-import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=28';
-import { renderAuthCard } from '../../assets/authcard.js?v=28';
+import { el, safeDecode } from '../../assets/dom.js?v=34';
+import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=34';
+import { renderAuthCard } from '../../assets/authcard.js?v=34';
+import { renderImport, IMPORT_SEG } from './import.js?v=34';
 
 /* ------------------------------------------------------------
    标记定义 —— 顺序即点击循环顺序
@@ -350,6 +351,11 @@ function renderCohort(c) {
   add.addEventListener('click', () => createAssignment(c, add));
   bar.appendChild(add);
 
+  const imp = el('a', 'btn', '⬆ 导入 Excel');
+  imp.href = `#/hwlog/${encodeURIComponent(c.name)}/${IMPORT_SEG}`;
+  imp.title = '把旧表（行=学生、列=作业）整个导进来';
+  bar.appendChild(imp);
+
   const exp = button('导出表格');
   exp.title = '导出成 CSV，Excel / WPS 双击就能打开（结构和旧版总表一样）';
   exp.addEventListener('click', () => exportCohort(c, exp));
@@ -579,6 +585,22 @@ export function renderHwlog(segments) {
   const cohortName = segments[1] ? safeDecode(segments[1]) : '';
   const assignmentId = segments[2] || '';
   const c = cohortName ? findCohort(cohortName) : null;
+
+  // 🔴 导入页必须在「班级不存在」判定**之前**：
+  //    从零开始时（库里还没有这个班）正是最需要导入的时候，
+  //    先判 !c 会直接把入口堵死，变成"想建班得先进班"的死循环。
+  if (assignmentId === IMPORT_SEG) {
+    // 班级列表可能还没拉到（直接从书签进这个地址），顺手拉一次
+    if (!S.cohorts.length) {
+      loadCohorts(true).then(() => rerender()).catch(() => {});
+    }
+    return renderImport({
+      cohorts: S.cohorts,
+      rerender,
+      reload: (force) => loadCohorts(force),
+      defaultCohort: cohortName,
+    });
+  }
 
   if (!cohortName) return renderOverview();
   if (!c) {

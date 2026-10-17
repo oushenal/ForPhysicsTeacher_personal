@@ -507,6 +507,69 @@ h1, h2, .card-title, .brand-name {
 .linkadd.linkadd-btn:focus-visible .why-hint { color: var(--brand-deep); opacity: 0.72; }
 
 /* ============================================================
+   作业登记 · 导入 Excel（#/hwlog/<班名>/~import）
+   ============================================================ */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 34px 20px; margin-bottom: 18px;
+  background: var(--surface); border: 1px dashed var(--line-strong);
+  border-radius: var(--r); cursor: pointer; text-align: center;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.dropzone:hover,
+.dropzone[data-over="1"] { border-color: var(--brand); background: var(--brand-tint); }
+.dropzone-mk { font-size: 26px; line-height: 1; color: var(--brand); }
+.dropzone-t { margin: 0; font-size: var(--fs-base); font-weight: 600; color: var(--ink); }
+.dropzone-d {
+  margin: 0; max-width: 46ch;
+  font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.7;
+}
+
+/* 一张工作表的预览卡 */
+.sheetcard {
+  padding: 16px 18px; margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+}
+.sheetcard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sheetcard-name { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.sheetcard-tag {
+  margin-left: auto; padding: 1px 8px; font-size: 11px; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px;
+}
+.sheetcard-err { margin: 0; font-size: var(--fs-sm); color: var(--bad); line-height: 1.7; }
+
+.iform { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.iform .input { flex: 0 1 220px; }
+
+.ifactgrid { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-bottom: 12px; }
+.ifact { display: flex; align-items: baseline; gap: 6px; }
+.ifact-l { font-size: 11px; color: var(--ink-3); }
+.ifact-v {
+  font-family: var(--font-mono); font-size: var(--fs-sm);
+  font-weight: 600; color: var(--ink);
+}
+.ifact-v[data-tone="warn"] { color: var(--warn); }
+
+/* 「会发生什么」—— 这段是给用户做决定用的，不能省 */
+.sheetcard-eff { padding-top: 10px; border-top: 1px solid var(--line); }
+.eff-line { margin: 0 0 4px; font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.7; }
+.eff-line:last-child { margin-bottom: 0; }
+
+.sheetcard-warn {
+  margin: 10px 0 0; padding-left: 18px;
+  font-size: 11px; color: var(--warn); line-height: 1.75;
+}
+
+.importrun {
+  padding: 26px 20px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+}
+.importrun-t { margin: 0 0 8px; font-size: var(--fs-base); font-weight: 600; color: var(--ink); }
+
+/* 通用：工具栏里的弹簧（以前只在 topbar / footer / demo-bar 里单独定义过） */
+.toolbar .spacer { flex: 1 1 auto; }
+
+/* ============================================================
    小节标题（杂项 / 更多 页用）
    ============================================================ */
 .sect {

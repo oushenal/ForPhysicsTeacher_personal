@@ -17,9 +17,9 @@
    路由：'#/misc'            杂项首页
          '#/misc/~view/<id>'  打开一个上传的文件（~ 开头不会和别的段冲突）
    ============================================================ */
-import { el } from '../../assets/dom.js?v=28';
-import { isSignedIn, sb, sbStore } from '../../assets/supabase.js?v=28';
-import { normalizeUrl } from '../../assets/links.js?v=28';
+import { el } from '../../assets/dom.js?v=34';
+import { isSignedIn, sb, sbStore } from '../../assets/supabase.js?v=34';
+import { normalizeUrl } from '../../assets/links.js?v=34';
 
 const BUCKET = 'misc';
 const VIEW_PREFIX = '~view';
@@ -484,14 +484,20 @@ export function renderMisc(segments = []) {
     up.appendChild(el('span', 'why', `上传中 ${S.upload.done + 1}/${S.upload.total}…`));
   } else {
     up.appendChild(el('span', 'mk', '＋'));
-    up.appendChild(el('span', 'why', '上传 HTML 文件（可一次选多个）'));
+    // 补充说明单独放 <i class="why-hint">：小一号、淡一档。
+    // 跟主文案同样黑的话，这一行会比上面的记录标题还重。
+    const w = el('span', 'why');
+    w.innerHTML = '上传 HTML 文件<i class="why-hint">可一次选多个</i>';
+    up.appendChild(w);
   }
   up.addEventListener('click', () => fileInput.click());
 
   const addUrl = el('button', 'linkadd linkadd-btn');
   addUrl.type = 'button';
   addUrl.appendChild(el('span', 'mk', '＋'));
-  addUrl.appendChild(el('span', 'why', '添加外链（报告放在别的站上时用）'));
+  const aw = el('span', 'why');
+  aw.innerHTML = '添加外链<i class="why-hint">页面放在别的站上时用</i>';
+  addUrl.appendChild(aw);
   addUrl.addEventListener('click', () => {
     S.form = S.form ? null : { kind: 'url' };
     rerender();
