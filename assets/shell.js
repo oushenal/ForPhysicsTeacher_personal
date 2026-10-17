@@ -4,15 +4,19 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=21';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=21';
+import { $, el, safeDecode } from './dom.js?v=28';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=28';
 import {
   renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
-} from '../apps/hwlog/hwlog.js?v=21';
+} from '../apps/hwlog/hwlog.js?v=28';
 import {
   renderScore, bindRerender as bindScoreRerender, primeScore,
-} from '../apps/score/score.js?v=21';
-import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=21';
+} from '../apps/score/score.js?v=28';
+import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=28';
+import {
+  loadLinks, customLinks, resetLinks, addLink, removeLink, normalizeUrl,
+} from './links.js?v=28';
+import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=28';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）
@@ -56,16 +60,18 @@ const MODULES = [
     id: 'hwlog', no: '03', path: '#/hwlog',
     name: '作业登记', short: '作业', tag: 'S3',
     store: 'Supabase',
-    desc: '花名册打钩录入，未交名单一键复制，连续未交自动标出。',
-    meta: { state: 'warn', mark: '◐', text: '本地版已有，待搬到云端' },
-    cta: '建班级',
-    note: '本地版（backup/作业登记系统）已经在用，搬到云端后多设备可用、可上传历史 Excel。',
+    desc: '花名册打钩录入，未交名单一键复制，整个班导出一张表。',
+    meta: { state: 'ok', mark: '●', text: '云端可用，手机也能录' },
+    cta: '打开',
+    note: '点一下循环切换 √→○→补→假，改动自动保存。'
+        + '「未交名单」一键复制可直接贴群里，「全部已交」适合先重置再挑个别人。'
+        + '数据在 Supabase，手机和电脑看到的是同一份。',
   },
   {
     id: 'score', no: '04', path: '#/score',
     name: '成绩归档', short: '成绩', tag: 'S4',
     store: '私有存储',
-    desc: '按学期 / 考试分级归档学情分析，随时翻出来看。',
+    desc: '按学期 / 考试分级归档学情分析，可重命名、可移动、随时翻出来看。',
     meta: { state: 'ok', mark: '●', text: '分级目录 + 私有存储' },
     cta: '打开归档',
     note: '只做「存 · 找 · 看」：把你生成好的学情分析传上来按学期分目录留档，'
@@ -74,11 +80,12 @@ const MODULES = [
   {
     id: 'misc', no: '05', path: '#/misc',
     name: '杂项', short: '杂项', tag: '',
-    store: '外链集合',
-    desc: '大巴点名表、以及以后各种零散的工具和页面，都放这儿。',
-    meta: { state: 'ok', mark: '●', text: `${LINKS.length} 个链接` },
+    store: '外链 + 上传',
+    desc: '大巴点名表、自己上传的页面、零散外链，都放这儿。',
+    meta: { state: 'ok', mark: '●', text: `${LINKS.length} 个固定外链` },
     cta: '打开',
-    note: '新链接写在 assets/config.js 的 links 数组里，加一条就多一行，不用改别的代码。',
+    note: '固定外链写在 assets/config.js 的 links 数组里（不登录也看得到）；'
+        + '登录后还能上传 HTML、加外链，存在 Supabase 的私有桶里。',
   },
 ];
 
@@ -92,14 +99,23 @@ const TAB_MAX = 4;
 
 /* ------------------------------------------------------------
    2. 环境状态
+   ------------------------------------------------------------
+   ⚠️ 必须是「当前真实状态」，不能写死。
+      页面什么都不显示的时候，用户第一件事就是看这里为什么 ——
+      这一条要是说了假话，比不显示更糟。
    ------------------------------------------------------------ */
-const ENV_STATUS = [
-  { mark: '●', state: 'ok',  label: '本机存储', value: '可用' },
-  { mark: '○', state: 'off', label: 'Supabase', value: '未连接' },
-  { mark: '●', state: 'ok',  label: '作业发布', value: '沿用现有地址' },
-];
+function envStatus() {
+  const signed = isSignedIn();
+  return [
+    { mark: '●', state: 'ok', label: '本机存储', value: '可用' },
+    signed
+      ? { mark: '●', state: 'ok', label: 'Supabase', value: '已登录' }
+      : { mark: '○', state: 'off', label: 'Supabase', value: '未登录' },
+    { mark: '●', state: 'ok', label: '作业发布', value: '沿用现有地址' },
+  ];
+}
 
-const BUILD = { stage: 'S0 外观定稿', version: 'v0.4' };
+const BUILD = { stage: 'S6 加板块 · 杂项上传', version: 'v0.6' };
 
 /* ------------------------------------------------------------
    3. 小工具
@@ -252,9 +268,11 @@ function pageHead(title, sub) {
 /** 幽灵格：把最后一行补满。
     —— 网格是「1px 缝隙连成的台账表格」，底色是线色；
        最后一行缺格时，那块底色会糊成一大片土黄（踩过）。
-    补成 4 的倍数即可同时被 4 列和 2 列整除；1 列时（≤700px）被 CSS 隐藏。 */
-function ghostCells() {
-  const n = (4 - (MODULES.length % 4)) % 4;
+    补成 4 的倍数即可同时被 4 列和 2 列整除；1 列时（≤700px）被 CSS 隐藏。
+    ⚠️ 传的是**卡片总数**（内建 + 自己加的板块），不是 MODULES.length ——
+       自己加过板块之后，只按内建数量补格就补错了。 */
+function ghostCells(count) {
+  const n = (4 - (count % 4)) % 4;
   const out = [];
   for (let i = 0; i < n; i++) {
     const g = el('div', 'card card-ghost');
@@ -264,6 +282,178 @@ function ghostCells() {
   return out;
 }
 
+/* ------------------------------------------------------------
+   自己加的板块（Supabase 的 custom_links 表）
+   ------------------------------------------------------------
+   🔴 只能加「站外跳转」型：一个名字 + 一个网址。
+      站内应用是代码写出来的，点一下「添加」长不出来。
+   ------------------------------------------------------------ */
+const HOME = { addOpen: false };
+
+/** 上一次渲染时的登录态 —— 用来发现「登录了 / 退出了」，好清掉板块缓存 */
+let lastSignedState = null;
+
+/** 把一条自定义链接包装成 cardView 认识的样子（编号接着内建的往下排） */
+function customCardModel(link, i) {
+  return {
+    no: String(MODULES.length + 1 + i).padStart(2, '0'),
+    path: link.url,
+    external: true,
+    name: link.title,
+    desc: link.note || '自己加的板块',
+    meta: { state: 'ok', mark: '↗', text: '站外页面' },
+    cta: '打开',
+    store: '外链 · 自己加的',
+    tag: '',
+  };
+}
+
+function customCard(link, i) {
+  const wrap = el('div', 'card-wrap');
+  wrap.appendChild(cardView(customCardModel(link, i)));
+
+  // 卡片本身是 <a>，里面不能再塞 <button>（HTML 不允许交互元素嵌套），
+  // 所以删除按钮做成它的**兄弟**，绝对定位压在角上。
+  const del = el('button', 'card-del');
+  del.type = 'button';
+  del.title = '移除这个板块';
+  del.textContent = '×';
+  del.addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (del.dataset.armed !== '1') {
+      // 两步确认：第一下只是「举起手」，4 秒不点就自己收回
+      del.dataset.armed = '1';
+      del.textContent = '移除?';
+      setTimeout(() => {
+        if (del.isConnected && del.dataset.armed === '1') {
+          del.dataset.armed = '';
+          del.textContent = '×';
+        }
+      }, 4000);
+      return;
+    }
+    del.dataset.armed = '';
+    del.disabled = true;
+    del.textContent = '…';
+    try {
+      await removeLink(link.id);
+      toast('已移除「' + link.title + '」');
+    } catch (e) {
+      toast('移除失败：' + e.message);
+    }
+    render();
+  });
+  wrap.appendChild(del);
+  return wrap;
+}
+
+function inputEl(placeholder) {
+  const i = document.createElement('input');
+  i.type = 'text';
+  i.className = 'input';
+  if (placeholder) i.placeholder = placeholder;
+  return i;
+}
+
+function fieldRow(label, node) {
+  const w = el('label', 'field');
+  w.appendChild(el('span', 'field-label', label));
+  w.appendChild(node);
+  return w;
+}
+
+function addLinkForm() {
+  const box = el('div', 'formpanel');
+  box.appendChild(el('p', 'formpanel-title', '添加板块'));
+
+  const hint = el('p', 'formhint');
+  hint.innerHTML = '只能加<b>站外跳转</b>型板块 —— 填个名字和网址，点开就跳过去。'
+    + '物理演示 / 作业登记 / 成绩归档这些站内模块不在这里加。';
+  box.appendChild(hint);
+
+  const rows = el('div', 'formrows');
+  const fTitle = inputEl('例如：班级相册');
+  const fUrl = inputEl('https://…（不写 https:// 也行）');
+  const fDesc = inputEl('一句话说明，可空');
+  rows.appendChild(fieldRow('板块名', fTitle));
+  rows.appendChild(fieldRow('网址', fUrl));
+  rows.appendChild(fieldRow('说明', fDesc));
+  box.appendChild(rows);
+
+  const err = el('p', 'form-hint');
+
+  const bar = el('div', 'formbar');
+  const save = el('button', 'btn btn-primary');
+  save.type = 'button';
+  save.textContent = '添加';
+  const cancel = el('button', 'btn');
+  cancel.type = 'button';
+  cancel.textContent = '取消';
+
+  const close = () => { HOME.addOpen = false; render(); };
+  cancel.addEventListener('click', close);
+
+  save.addEventListener('click', async () => {
+    const t = fTitle.value.trim();
+    const u = normalizeUrl(fUrl.value);
+    if (!t) { err.dataset.kind = 'bad'; err.textContent = '板块名不能空着。'; fTitle.focus(); return; }
+    if (!u) { err.dataset.kind = 'bad'; err.textContent = '网址填得不对，要像 https://example.com 这样。'; fUrl.focus(); return; }
+    if (customLinks().some((l) => l.url === u)) {
+      err.dataset.kind = 'bad'; err.textContent = '这个网址已经加过了。'; return;
+    }
+    save.disabled = true; save.textContent = '添加中…';
+    err.dataset.kind = ''; err.textContent = '';
+    try {
+      await addLink({ title: t, url: u, note: fDesc.value });
+      HOME.addOpen = false;
+      toast('已添加「' + t + '」');
+      render();
+    } catch (e) {
+      err.dataset.kind = 'bad';
+      err.textContent = '添加失败：' + e.message;
+      save.disabled = false; save.textContent = '添加';
+    }
+  });
+
+  // 回车 = 添加，别逼人去找按钮
+  for (const inp of [fTitle, fUrl, fDesc]) {
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') save.click(); });
+  }
+
+  bar.appendChild(save);
+  bar.appendChild(cancel);
+  box.appendChild(bar);
+  box.appendChild(err);
+
+  setTimeout(() => fTitle.focus(), 0);
+  return box;
+}
+
+function homeAddRow() {
+  const box = el('div', 'linklist homeadd');
+  const b = el('button', 'linkadd linkadd-btn');
+  b.type = 'button';
+
+  if (!isSignedIn()) {
+    b.appendChild(el('span', 'mk', '○'));
+    b.appendChild(el('span', 'why', '登录后可以在这里加自己的板块'));
+    b.addEventListener('click', () => {
+      location.hash = '#/hwlog';
+      toast('先登录，然后回来这里加板块。');
+    });
+  } else {
+    b.appendChild(el('span', 'mk', '＋'));
+    b.appendChild(el('span', 'why', HOME.addOpen ? '收起' : '添加板块'));
+    if (customLinks().length) {
+      b.appendChild(el('span', 'homeadd-n', `已有 ${customLinks().length} 个自己加的`));
+    }
+    b.addEventListener('click', () => { HOME.addOpen = !HOME.addOpen; render(); });
+  }
+  box.appendChild(b);
+  return box;
+}
+
 function renderHome() {
   const frag = document.createDocumentFragment();
   const today = formatToday();
@@ -271,7 +461,7 @@ function renderHome() {
   frag.appendChild(pageHead('工作台', `${today.full} ${today.week} · 高一 2 班 / 6 班`));
 
   const status = el('div', 'status');
-  for (const s of ENV_STATUS) {
+  for (const s of envStatus()) {
     const item = el('div', 'status-item');
     item.appendChild(marker(s.state, s.mark));
     const span = el('span');
@@ -281,40 +471,25 @@ function renderHome() {
   }
   frag.appendChild(status);
 
+  const mine = customLinks();
   const grid = el('div', 'grid');
   for (const m of MODULES) grid.appendChild(cardView(m));
-  for (const g of ghostCells()) grid.appendChild(g);
+  mine.forEach((l, i) => grid.appendChild(customCard(l, i)));
+  for (const g of ghostCells(MODULES.length + mine.length)) grid.appendChild(g);
   frag.appendChild(grid);
+
+  frag.appendChild(homeAddRow());
+  if (HOME.addOpen && isSignedIn()) frag.appendChild(addLinkForm());
 
   return frag;
 }
 
 /* ------------------------------------------------------------
-   6. 杂项页 —— 零散外链
+   6. 杂项页 —— 已搬到 apps/misc/misc.js
+   ------------------------------------------------------------
+   站外链接在 assets/config.js 的 links 数组里；
+   「我上传的」在 Supabase（misc_items + 私有桶 misc）。
    ------------------------------------------------------------ */
-function renderMisc() {
-  const frag = document.createDocumentFragment();
-
-  frag.appendChild(pageHead('杂项', '零散的工具和页面，放一起。'));
-  frag.appendChild(section('站外链接', LINKS.length));
-
-  const list = el('div', 'linklist');
-  if (LINKS.length) {
-    for (const it of LINKS) list.appendChild(linkRow(it));
-  } else {
-    const empty = el('div', 'linkadd');
-    empty.appendChild(el('span', 'why', '还没有链接。'));
-    list.appendChild(empty);
-  }
-
-  const add = el('div', 'linkadd');
-  add.appendChild(el('span', 'mk', '＋'));
-  add.appendChild(el('span', 'why', '「在首页加板块」的功能会随 Supabase 一起做，那时这里也能直接加'));
-  list.appendChild(add);
-  frag.appendChild(list);
-
-  return frag;
-}
 
 /* ------------------------------------------------------------
    7. 更多页 —— 手机底栏折叠后的去处
@@ -333,6 +508,17 @@ function renderMore() {
     }));
   }
   frag.appendChild(mlist);
+
+  // 自己加的板块（只在这里列一遍，手机底栏不占位）
+  const mine = customLinks();
+  if (mine.length) {
+    frag.appendChild(section('自己加的板块', mine.length));
+    const clist = el('div', 'linklist');
+    for (const l of mine) {
+      clist.appendChild(linkRow({ name: l.title, desc: l.note || '', url: l.url }));
+    }
+    frag.appendChild(clist);
+  }
 
   frag.appendChild(section('系统'));
   const slist = el('div', 'linklist');
@@ -412,13 +598,25 @@ function paintLogin() {
   const btn = $('#btn-login');
   if (!btn) return;
   btn.textContent = isSignedIn() ? (currentEmail().split('@')[0] || '已登录') : '登录';
-  btn.title = isSignedIn() ? currentEmail() + '（点击去作业登记）' : '邮箱 Magic Link 登录';
+  btn.title = isSignedIn() ? currentEmail() + '（点击去作业登记）' : '邮箱 + 密码登录';
 }
 
 function render() {
   const path = parseRoute();
   const segs = parseSegments();
   const main = $('#main');
+
+  // 登录态变了（登录 / 退出 / 令牌失效被清）→ 自己加的板块要重新取，
+  // 换账号时绝不能还挂着上一个人的板块。
+  if (isSignedIn() !== lastSignedState) {
+    lastSignedState = isSignedIn();
+    resetLinks();
+    HOME.addOpen = false;
+  }
+
+  // 自己加的板块：还没取过就取一次，拿到后重绘。
+  // loadLinks 内部有 loaded 闸门，失败也只算一次，不会变成重试循环。
+  loadLinks().then((changed) => { if (changed) render(); });
 
   main.innerHTML = '';
 
@@ -452,6 +650,16 @@ function render() {
     return;
   }
 
+  // 杂项（含 '#/misc/~view/<id>' 预览，交给模块分派）
+  if (segs[0] === 'misc') {
+    main.appendChild(renderMisc(segs));
+    document.title = '杂项 · physics';
+    syncNav();
+    paintLogin();
+    primeMisc().then((changed) => { if (changed) { render(); } });
+    return;
+  }
+
   const view = ROUTES[path];
   main.appendChild(view ? view() : renderPlaceholder(null));
 
@@ -466,6 +674,7 @@ function render() {
 function boot() {
   bindHwlogRerender(render);
   bindScoreRerender(render);
+  bindMiscRerender(render);
 
   const today = formatToday();
   const dateEl = $('#top-date');

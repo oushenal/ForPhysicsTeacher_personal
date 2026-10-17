@@ -263,6 +263,57 @@ h1, h2, .card-title, .brand-name {
 .card-ghost { pointer-events: none; }
 @media (max-width: 700px) { .card-ghost { display: none; } }
 
+/* ---------- 自己加的板块：卡片 + 角上的移除按钮 ----------
+   卡片本身是 <a>，里面不能再放 <button>（交互元素不允许嵌套），
+   所以按钮做成卡片的**兄弟**，绝对定位压上去。 */
+.card-wrap { position: relative; display: flex; }
+.card-wrap > .card { flex: 1 1 auto; min-width: 0; }
+
+.card-del {
+  position: absolute; top: 14px; right: 46px; z-index: 2;
+  min-width: 24px; height: 24px; padding: 0 7px;
+  font: inherit; font-size: 12px; line-height: 1;
+  color: var(--ink-3); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px;
+  cursor: pointer;
+  /* ⚠️ 不能只靠 hover 显示：手机上永远 hover 不到，按钮就等于不存在。
+     所以默认给一个"很淡但看得见"的 0.5，悬停/聚焦/举起手时变实。 */
+  opacity: 0.5;
+  transition: opacity var(--dur) var(--ease),
+              color var(--dur) var(--ease),
+              border-color var(--dur) var(--ease);
+}
+.card-wrap:hover .card-del,
+.card-del:focus-visible,
+.card-del[data-armed="1"] { opacity: 1; }
+.card-del:hover { color: var(--bad); border-color: var(--bad); opacity: 1; }
+.card-del[data-armed="1"] {
+  opacity: 1; color: var(--brand); border-color: var(--brand); font-weight: 600;
+}
+.card-del:disabled { cursor: progress; }
+
+/* ---------- 首页「＋ 添加板块」 ---------- */
+.homeadd { margin-top: 18px; }
+.linkadd-btn {
+  width: 100%; border: 0; text-align: left; font: inherit;
+  cursor: pointer;
+}
+.linkadd-btn:hover { background: var(--brand-tint); color: var(--ink-2); }
+.linkadd-btn .mk { color: var(--brand); }
+.homeadd-n {
+  margin-left: auto; flex: none;
+  font-size: 11px; color: var(--ink-3);
+}
+
+/* 表单里的一行说明 / 一行报错 */
+.formhint {
+  margin: -6px 0 14px; font-size: 11px; line-height: 1.7; color: var(--ink-3);
+}
+.form-hint {
+  margin: 10px 0 0; font-size: var(--fs-sm); color: var(--ink-3);
+}
+.form-hint[data-kind="bad"] { color: var(--bad); }
+
 /* 外链卡（作业发布 / 杂项这类不站内实现的） */
 .card .ext { font-size: 11px; color: var(--ink-3); margin-left: 5px; }
 
@@ -449,10 +500,25 @@ h1, h2, .card-title, .brand-name {
   padding: 12px 16px; margin-bottom: 18px;
   background: var(--surface-2); border: 1px solid var(--line);
   border-radius: var(--r); font-size: var(--fs-sm); color: var(--ink-2);
+  /* 重绘后新出现的提示条要有"刚发生"的感觉，别像一直在那儿 */
+  animation: noticein 0.26s ease both;
+}
+@keyframes noticein {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
 }
 .notice[data-kind="bad"] { background: var(--brand-tint); }
 .notice[data-kind="bad"] .mk { color: var(--bad); }
 .notice-txt { min-width: 0; }
+.notice-act {
+  margin-left: auto; flex: none;
+  font-size: var(--fs-sm); color: var(--brand); text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.notice-act:hover { border-bottom-color: var(--brand); }
+@media (prefers-reduced-motion: reduce) {
+  .notice { animation: none; }
+}
 
 /* ============================================================
    登录卡片
@@ -621,6 +687,31 @@ input[type="date"].input { font-family: var(--font-mono); font-size: var(--fs-sm
   white-space: normal; line-height: 1.5;
 }
 .picktarget:disabled { color: var(--ink-3); border-style: dashed; }
+
+/* 🔴 点击后要**立刻**看得出点到了。
+   移动 = 一次 rpc + 一次重列表，慢的时候一两秒界面没动静，
+   用户会以为没点上，于是再点一次 —— 那才真容易出事。
+   所以：整块进入忙碌态、只有被点的那一项保持高亮并改成「正在移动…」。 */
+.movelist[data-busy="1"] { cursor: progress; }
+.movelist[data-busy="1"] .picktarget { pointer-events: none; }
+.movelist[data-busy="1"] .picktarget:not([data-picked]) {
+  opacity: 0.32;
+  border-color: var(--line);
+}
+.movelist[data-busy="1"] .picktarget[data-picked] {
+  border-color: var(--brand);
+  color: var(--brand-deep);
+  font-weight: 600;
+  background: var(--brand-tint);
+}
+.movelist[data-busy="1"] .picktarget[data-picked]::after {
+  content: "";
+  width: 11px; height: 11px; margin-left: auto; flex: none;
+  border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ============================================================
    物理演示 · 站内 iframe 舞台

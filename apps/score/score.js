@@ -17,9 +17,9 @@
          '#/score/<目录>/<目录>'      某一层目录
          '#/score/~view/<id>'        打开一份报告（~ 开头的段不会与目录名冲突）
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=21';
-import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=21';
-import { renderAuthCard } from '../../assets/authcard.js?v=21';
+import { el, safeDecode } from '../../assets/dom.js?v=28';
+import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=28';
+import { renderAuthCard } from '../../assets/authcard.js?v=28';
 
 const BUCKET = 'grades';
 const VIEW_PREFIX = '~view';
@@ -31,6 +31,7 @@ const S = {
   loading: false,
   error: '',
   flash: '',            // 一次性提示（保存成功之类）
+  flashHref: '',        // 提示条上「去看看 →」去的地方（比如刚移过去的目标目录）
   items: [],            // 全部归档条目（一次取回，树在本地拼）
   classes: ['2班', '6班'],
   filter: '',           // 班级筛选：'' = 全部
@@ -90,11 +91,16 @@ function pageHead(title, sub) {
   if (sub) h.appendChild(el('p', 'page-sub', sub));
   return h;
 }
-function notice(text, kind) {
+function notice(text, kind, action) {
   const n = el('div', 'notice');
   if (kind) n.dataset.kind = kind;
   n.appendChild(el('span', 'mk', kind === 'bad' ? '○' : '●'));
   n.appendChild(el('span', 'notice-txt', text));
+  if (action) {
+    const a = el('a', 'notice-act', action.label);
+    a.href = action.href;
+    n.appendChild(a);
+  }
   return n;
 }
 function button(text, cls) {
@@ -420,7 +426,16 @@ function formPanel(pathArr) {
       const isHere = segKey(t.path) === curK;
       const b = button(t.label, 'picktarget');
       if (isHere) { b.disabled = true; b.textContent = t.label + '（当前目录）'; }
-      b.addEventListener('click', () => doMove(ids, t.path));
+      b.addEventListener('click', () => {
+        // 🔴 点下去必须**立刻**有反应。
+        //    移动是「RPC + 重新拉列表」两个网络往返，慢的时候一两秒没动静，
+        //    用户会怀疑自己没点上，于是又点一次 —— 那才是真的容易出事。
+        if (grid.dataset.busy) return;
+        grid.dataset.busy = '1';
+        b.dataset.picked = '1';
+        b.textContent = '正在移动到「' + t.label + '」…';
+        doMove(ids, t.path, t.label);
+      });
       grid.appendChild(b);
     }
     box.appendChild(grid);
@@ -549,17 +564,22 @@ function nextSort(pathArr) {
   return sibs.reduce((m, i) => Math.max(m, i.sort ?? 0), 0) + 1;
 }
 
-async function doMove(ids, destPath) {
+async function doMove(ids, destPath, destLabel) {
+  const label = destLabel || ((destPath || []).length ? destPath.join(' / ') : '根目录');
   try {
     const n = await sb.rpc('move_archive_items', { p_ids: ids, p_dest: destPath });
     await loadItems();
+    const moved = typeof n === 'number' ? n : ids.length;
     S.form = null;
     S.sel.clear();
-    S.flash = `已移动 ${typeof n === 'number' ? n : ids.length} 项`;
+    S.flash = `已移动 ${moved} 项 → ${label}`;
+    // 给一条「去看看」—— 移完东西从当前目录消失了，光说一句"已移动"没法确认去了哪
+    S.flashHref = '#/score' + (destPath || []).map((p) => '/' + encodeURIComponent(p)).join('');
     S.error = '';
     rerender();
   } catch (e) {
     S.error = '移动失败：' + e.message;
+    S.form = null;
     rerender();
   }
 }
@@ -632,7 +652,10 @@ function renderDir(pathArr) {
     f.appendChild(chips);
   }
 
-  if (S.flash) { f.appendChild(notice(S.flash)); S.flash = ''; }
+  if (S.flash) {
+    f.appendChild(notice(S.flash, '', S.flashHref ? { label: '去看看 →', href: S.flashHref } : null));
+    S.flash = ''; S.flashHref = '';
+  }
   if (S.error) f.appendChild(notice(S.error, 'bad'));
 
   /* 表单 */

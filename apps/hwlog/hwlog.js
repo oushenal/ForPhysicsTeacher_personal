@@ -11,9 +11,9 @@
          '#/hwlog/<班名>'              该班作业批次列表
          '#/hwlog/<班名>/<assignmentId>' 打钩录入
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=21';
-import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=21';
-import { renderAuthCard } from '../../assets/authcard.js?v=21';
+import { el, safeDecode } from '../../assets/dom.js?v=28';
+import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=28';
+import { renderAuthCard } from '../../assets/authcard.js?v=28';
 
 /* ------------------------------------------------------------
    标记定义 —— 顺序即点击循环顺序
