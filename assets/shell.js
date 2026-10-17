@@ -4,19 +4,19 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=28';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=28';
+import { $, el, safeDecode } from './dom.js?v=32';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=32';
 import {
   renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
-} from '../apps/hwlog/hwlog.js?v=28';
+} from '../apps/hwlog/hwlog.js?v=32';
 import {
   renderScore, bindRerender as bindScoreRerender, primeScore,
-} from '../apps/score/score.js?v=28';
-import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=28';
+} from '../apps/score/score.js?v=32';
+import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=32';
 import {
   loadLinks, customLinks, resetLinks, addLink, removeLink, normalizeUrl,
-} from './links.js?v=28';
-import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=28';
+} from './links.js?v=32';
+import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=32';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）

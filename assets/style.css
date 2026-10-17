@@ -294,12 +294,17 @@ h1, h2, .card-title, .brand-name {
 
 /* ---------- 首页「＋ 添加板块」 ---------- */
 .homeadd { margin-top: 18px; }
+/* ---------- 可点的「＋ 添加」行 ----------
+   ⚠️ 这里只放**结构**（宽度 / 边框 / 光标 / 过渡）。
+      颜色与 hover 效果统一写在下面 `.linkadd` 那一段，
+      并且一律用双类名 `.linkadd.linkadd-btn`：
+      `.linkadd` 在文件后面，单类同分时它会把颜色覆盖回去（踩过两次）。 */
 .linkadd-btn {
   width: 100%; border: 0; text-align: left; font: inherit;
   cursor: pointer;
+  transition: background var(--dur) var(--ease),
+              color var(--dur) var(--ease);
 }
-.linkadd-btn:hover { background: var(--brand-tint); color: var(--ink-2); }
-.linkadd-btn .mk { color: var(--brand); }
 .homeadd-n {
   margin-left: auto; flex: none;
   font-size: 11px; color: var(--ink-3);
@@ -443,12 +448,63 @@ h1, h2, .card-title, .brand-name {
 }
 
 /* 列表末尾的「+ 添加」位（功能未开时也要说清为什么） */
+/* ---------- 列表里的「＋ 添加」行 ----------
+   两个老问题（2026-10-17 用户反馈「静止时背景过深、hover 看不出变化」）：
+   ① 底色用了 --surface-2(#f3efe7) + --ink-3(#9c9486) 文字 → 对比度约 2.6:1，
+      远低于可读线，整行灰蒙蒙；三行挨着又没有分隔线，糊成一整块。
+      → 改成和表格行一样的面色 --surface，靠 1px 线分隔。
+   ② hover 只改了父元素 color，而 `.linkadd .why` 自己钉死了 --ink-3，
+      颜色根本传不下去；背景 --brand-tint 和 --surface-2 又只差几个色阶。
+      → `.why` 改 inherit，hover 时背景 + 文字 + 加号三处同时变。 */
 .linkadd {
   display: flex; align-items: center; gap: 10px;
-  padding: 15px 20px; font-size: var(--fs-sm); color: var(--ink-3);
-  background: var(--surface-2);
+  padding: 15px 20px; font-size: var(--fs-sm);
+  color: var(--ink-2);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
 }
-.linkadd .why { color: var(--ink-3); font-size: var(--fs-sm); }
+/* 首行、以及紧跟在一行链接后面时，不要叠出 2px 的双线 */
+.linkadd:first-child,
+.linkrow + .linkadd { border-top: 0; }
+
+.linkadd .why { color: inherit; font-size: var(--fs-sm); }
+.linkadd .mk { color: var(--ink-3); }
+
+/* ---------- 可点行的颜色与 hover ----------
+   🔴 一律用双类名 `.linkadd.linkadd-btn`（0,2,0）。
+      原因：`.linkadd` / `.linkadd .mk` 这些单类规则就在上面，
+      单类写的话同分会被它们盖回去 —— 实测「文字没变深」「加号不变色」都是这个原因。
+   hover 一次改三处：底色、文字、加号（+ 放大 1.2 倍）。只改底色幅度太小，看不出来。 */
+.linkadd.linkadd-btn { color: var(--ink); }
+.linkadd.linkadd-btn .mk {
+  color: var(--brand);
+  transition: color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.linkadd.linkadd-btn:hover,
+.linkadd.linkadd-btn:focus-visible {
+  background: var(--brand-tint);
+  color: var(--brand-deep);
+}
+.linkadd.linkadd-btn:hover .mk,
+.linkadd.linkadd-btn:focus-visible .mk {
+  color: var(--brand-deep);
+  transform: scale(1.2);
+}
+.linkadd.linkadd-btn:active { background: var(--brand-tint); }
+.linkadd.linkadd-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+/* 上传中（disabled）：不再有「可点」的样子，但也别淡到看不清进度 */
+.linkadd.linkadd-btn:disabled { cursor: progress; color: var(--ink-2); }
+.linkadd.linkadd-btn:disabled .mk { color: var(--ink-3); transform: none; }
+
+/* 主文案后面的补充说明：小一号、淡一档。
+   和主文案一样黑的话，动作行会比上面的记录标题还重，层次就乱了。 */
+.linkadd .why-hint {
+  margin-left: 8px; font-style: normal;
+  font-size: 11px; color: var(--ink-3);
+  transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.linkadd.linkadd-btn:hover .why-hint,
+.linkadd.linkadd-btn:focus-visible .why-hint { color: var(--brand-deep); opacity: 0.72; }
 
 /* ============================================================
    小节标题（杂项 / 更多 页用）
