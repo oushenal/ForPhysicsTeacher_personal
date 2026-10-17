@@ -4,10 +4,10 @@
    登录是全局的（一个 Supabase 会话），所以两个模块必须长得一样、
    不能各写一份 —— 否则改一处忘一处，用户会撞见两种说法。
    ============================================================ */
-import { el } from './dom.js?v=38';
+import { el } from './dom.js?v=41';
 import {
   isConfigured, signInWithPassword, signUpWithPassword, diagnose,
-} from './supabase.js?v=38';
+} from './supabase.js?v=41';
 
 function button(text, cls) {
   const b = el('button', 'btn' + (cls ? ' ' + cls : ''));

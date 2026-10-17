@@ -4,22 +4,22 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=38';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=38';
+import { $, el, safeDecode } from './dom.js?v=41';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=41';
 import {
   renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
-} from '../apps/hwlog/hwlog.js?v=38';
+} from '../apps/hwlog/hwlog.js?v=41';
 import {
   renderScore, bindRerender as bindScoreRerender, primeScore,
-} from '../apps/score/score.js?v=38';
-import { captureSessionFromUrl, isSignedIn, currentDisplayName, currentEmail } from './supabase.js?v=38';
+} from '../apps/score/score.js?v=41';
+import { captureSessionFromUrl, isSignedIn, currentDisplayName, currentEmail } from './supabase.js?v=41';
 import {
   loadLinks, customLinks, resetLinks, addLink, removeLink, normalizeUrl,
-} from './links.js?v=38';
-import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=38';
-import { renderSettings as renderSettingsPage } from '../apps/settings/settings.js?v=38';
-import { applyStoredTheme } from './theme.js?v=38';
-import { applyOverride, setOverride, clearOverride } from './overrides.js?v=38';
+} from './links.js?v=41';
+import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=41';
+import { renderSettings as renderSettingsPage } from '../apps/settings/settings.js?v=41';
+import { applyStoredTheme } from './theme.js?v=41';
+import { applyOverride, saveOverride, loadOverrides, resetOverrides } from './overrides.js?v=41';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）
@@ -315,7 +315,7 @@ function editForm() {
   if (isBuiltin) {
     const hint = el('p', 'formhint');
     hint.innerHTML = '只改卡片上显示的<b>标题</b>和<b>描述</b>，跳转目标不变。'
-      + '改的是本机偏好（存浏览器），换设备或清缓存会还原。';
+      + '存在云端，换设备也能看到。';
     box.appendChild(hint);
   }
 
@@ -347,9 +347,9 @@ function editForm() {
     err.dataset.kind = ''; err.textContent = '';
     try {
       if (isBuiltin) {
-        setOverride(e.mod.id, { name: t, desc: fDesc.value });
+        await saveOverride(e.mod.id, { name: t, desc: fDesc.value });
       } else {
-        const { renameLink } = await import('./links.js?v=38');
+        const { renameLink } = await import('./links.js?v=41');
         await renameLink(e.link.id, t, fDesc.value);
       }
       HOME.edit = null;
@@ -671,17 +671,21 @@ function render() {
   const segs = parseSegments();
   const main = $('#main');
 
-  // 登录态变了（登录 / 退出 / 令牌失效被清）→ 自己加的板块要重新取，
-  // 换账号时绝不能还挂着上一个人的板块。
+  // 登录态变了（登录 / 退出 / 令牌失效被清）→ 自己加的板块和模块覆盖要重新取，
+  // 换账号时绝不能还挂着上一个人的数据。
   if (isSignedIn() !== lastSignedState) {
     lastSignedState = isSignedIn();
     resetLinks();
+    resetOverrides();
     HOME.addOpen = false;
   }
 
   // 自己加的板块：还没取过就取一次，拿到后重绘。
   // loadLinks 内部有 loaded 闸门，失败也只算一次，不会变成重试循环。
   loadLinks().then((changed) => { if (changed) render(); });
+
+  // 内建模块的标题/描述覆盖（Supabase）：同样取一次、拿到后重绘
+  loadOverrides().then((changed) => { if (changed) render(); });
 
   main.innerHTML = '';
 

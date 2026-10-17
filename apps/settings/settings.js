@@ -10,13 +10,13 @@
    账户操作（改密码、注销）都打 GoTrue 的 /auth/v1/user，
    危险操作（注销、覆盖）一律两步确认。
    ============================================================ */
-import { el } from '../../assets/dom.js?v=38';
+import { el } from '../../assets/dom.js?v=41';
 import {
   isSignedIn, currentEmail, currentDisplayName, signOut,
   updateDisplayName, updatePassword, deleteAccount, diagnose,
-} from '../../assets/supabase.js?v=38';
-import { renderAuthCard } from '../../assets/authcard.js?v=38';
-import { listThemes, currentTheme, setTheme, listHues, currentHue, setHue } from '../../assets/theme.js?v=38';
+} from '../../assets/supabase.js?v=41';
+import { renderAuthCard } from '../../assets/authcard.js?v=41';
+import { listThemes, currentTheme, setTheme, listHues, currentHue, setHue } from '../../assets/theme.js?v=41';
 
 let rerender = () => {};
 
@@ -221,35 +221,111 @@ function themeSection() {
 
   sec.appendChild(group);
 
-  /* 身份色色相：饱和度/亮度不变，只转色环位置（绿/蓝/紫…） */
+  /* 身份色色相：真正的色环拾取器 —— 点/拖任意角度选 hue，
+     饱和度与亮度结构不变，背景也跟着色相联动。 */
   const hueLabel = el('div', 'hue-label');
   hueLabel.appendChild(el('span', 'hue-label-t', '身份色'));
-  hueLabel.appendChild(el('span', 'hue-label-d', '只转色环，饱和度与亮度不变'));
+  hueLabel.appendChild(el('span', 'hue-label-d', '点色环选色区，背景会跟着变'));
   sec.appendChild(hueLabel);
 
   const hue = currentHue();
-  const hueGroup = el('div', 'huegroup');
+
+  const wheelWrap = el('div', 'huewheel-wrap');
+  const wheel = el('div', 'huewheel');
+  wheel.setAttribute('role', 'slider');
+  wheel.setAttribute('aria-label', '身份色色相');
+  wheel.setAttribute('aria-valuemin', '0');
+  wheel.setAttribute('aria-valuemax', '360');
+  wheel.setAttribute('aria-valuenow', String(hue));
+  wheel.setAttribute('aria-valuetext', `${hue}°`);
+
+  // 指针标记：定位在色环上对应角度
+  const knob = el('span', 'huewheel-knob');
+  positionKnob(knob, hue);
+  wheel.appendChild(knob);
+
+  wheelWrap.appendChild(wheel);
+
+  // 读角度：从指针元素中心算 atan2，0°=顶部(赭红默认位)
+  function hueFromEvent(e) {
+    const r = wheel.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let dx, dy;
+    if (e.touches) {
+      dx = e.touches[0].clientX - cx; dy = e.touches[0].clientY - cy;
+    } else {
+      dx = e.clientX - cx; dy = e.clientY - cy;
+    }
+    // atan2(dy,dx) 是标准数学角（右=0，顺时针）；我们 0° 放顶部，顺时针增
+    let deg = Math.atan2(dx, -dy) * 180 / Math.PI;   // 顶部=0，顺时针为正
+    if (deg < 0) deg += 360;
+    return Math.round(deg);
+  }
+
+  function positionKnob(k, deg) {
+    // 🔴 translateY 必须用**像素**不是百分比 —— 百分比相对指针自身（16px），
+    //    只挪 6px，指针会瘫在圆心（踩过）。环 168px、挖空 26%，中线半径 ≈ 53px。
+    k.style.transform = `rotate(${deg}deg) translateY(-53px)`;
+  }
+
+  let dragging = false;
+  const apply = (deg) => {
+    setHue(deg);
+    wheel.setAttribute('aria-valuenow', String(deg));
+    wheel.setAttribute('aria-valuetext', `${deg}°`);
+    positionKnob(knob, deg);
+    // 实时刷新下方当前值标签
+    const val = document.querySelector('.huewheel-val b');
+    if (val) val.textContent = `${deg}°`;
+    const chip = document.querySelector('.huewheel-chip');
+    if (chip) chip.style.background = `hsl(${deg} 58% 42%)`;
+  };
+
+  wheel.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    wheel.setPointerCapture(e.pointerId);
+    apply(hueFromEvent(e));
+  });
+  wheel.addEventListener('pointermove', (e) => { if (dragging) apply(hueFromEvent(e)); });
+  wheel.addEventListener('pointerup', () => { dragging = false; });
+  wheel.addEventListener('pointercancel', () => { dragging = false; });
+  // 键盘：左右方向键微调
+  wheel.tabIndex = 0;
+  wheel.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); apply((hue - 1 + 360) % 360); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); apply((hue + 1) % 360); }
+  });
+
+  wheelWrap.appendChild(wheel);
+
+  // 当前值 + 预设快捷
+  const row = el('div', 'huewheel-info');
+  const val = el('span', 'huewheel-val');
+  val.innerHTML = `当前 <b>${hue}°</b>`;
+  row.appendChild(val);
+  const chip = el('span', 'huewheel-chip');
+  chip.style.background = `hsl(${hue} 58% 42%)`;
+  row.appendChild(chip);
+  wheelWrap.appendChild(row);
+
+  const presetLabel = el('span', 'hue-preset-label', '快捷：');
+  const preset = el('div', 'huegroup');
   for (const h of listHues()) {
     const b = el('button', 'hueopt');
     b.type = 'button';
     if (h.hue === hue) b.setAttribute('aria-pressed', 'true');
-
-    // 色块用当前 hue 直接画：饱和度/亮度与身份色一致，只换 hue
     const sw = el('span', 'hue-swatch');
     sw.style.background = `hsl(${h.hue} 58% 42%)`;
     b.appendChild(sw);
-
     b.appendChild(el('span', 'hue-name', h.name));
-    if (h.hue === hue) b.appendChild(el('span', 'hue-now', '当前'));
-
-    b.addEventListener('click', () => {
-      setHue(h.hue);
-      rerender();
-    });
-
-    hueGroup.appendChild(b);
+    b.addEventListener('click', () => { apply(h.hue); rerender(); });
+    preset.appendChild(b);
   }
-  sec.appendChild(hueGroup);
+  row.appendChild(presetLabel);
+  wheelWrap.appendChild(preset);
+
+  sec.appendChild(wheelWrap);
 
   return sec;
 }

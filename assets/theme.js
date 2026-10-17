@@ -16,14 +16,14 @@ const THEMES = [
   { id: 'ink', name: '墨夜', desc: '深底，课堂投屏 / 夜间' },
 ];
 
-/** 色相预设：饱和度不变，只转色环上的位置（用户点名要的绿色系/蓝色系） */
+/** 色相预设：快捷参考点，主交互是设置页里的色环（可拖任意角度） */
 const HUES = [
-  { id: 'rust', name: '赭红', hue: 11,  desc: '默认' },
-  { id: 'amber', name: '琥珀', hue: 32,  desc: '橙黄' },
-  { id: 'green', name: '苔绿', hue: 140, desc: '绿色系' },
-  { id: 'teal', name: '青碧', hue: 175, desc: '青绿色' },
-  { id: 'blue', name: '靛蓝', hue: 215, desc: '蓝色系' },
-  { id: 'violet', name: '紫棠', hue: 280, desc: '紫色系' },
+  { id: 'rust', name: '赭红', hue: 11 },
+  { id: 'amber', name: '琥珀', hue: 32 },
+  { id: 'green', name: '苔绿', hue: 140 },
+  { id: 'teal', name: '青碧', hue: 175 },
+  { id: 'blue', name: '靛蓝', hue: 215 },
+  { id: 'violet', name: '紫棠', hue: 280 },
 ];
 
 /** 当前生效的主题 id（读 DOM，因为可能被别处改过） */

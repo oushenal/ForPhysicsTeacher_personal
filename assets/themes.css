@@ -19,19 +19,23 @@
 
 :root,
 [data-theme="paper"] {
-  /* ---------- 底与面 ---------- */
-  --bg:          #faf8f3;   /* 暖米白纸底 */
-  --surface:     #fffefb;
-  --surface-2:   #f3efe7;
+  /* ---------- 底与面 ----------
+     🔑 纸底也跟着身份色 hue 转（用户要求背景联动）：
+        保持各自的饱和度/亮度结构不变，只把 hue 从「固定暖黄」改成
+        「brand-hue + 30°」—— 切到绿色系时纸底带极淡绿调，而不是死板的米黄。
+        默认 hue=11 时 +30 = 41°，和原来的暖米白（43°）几乎一致，观感不变。 */
+  --bg:          hsl(calc(var(--brand-hue) + 30) 30% 97%);
+  --surface:     hsl(calc(var(--brand-hue) + 30) 50% 99%);
+  --surface-2:   hsl(calc(var(--brand-hue) + 30) 26% 94%);
 
   /* ---------- 线（仪器感来自清晰的线，不来自阴影） ---------- */
-  --line:        #e6dfd2;
-  --line-strong: #cec5b4;
+  --line:        hsl(calc(var(--brand-hue) + 30) 22% 88%);
+  --line-strong: hsl(calc(var(--brand-hue) + 30) 16% 78%);
 
-  /* ---------- 文字 ---------- */
-  --ink:         #1d1a16;   /* 深墨（不用纯黑） */
-  --ink-2:       #6b6459;
-  --ink-3:       #9c9486;
+  /* ---------- 文字（中性灰，不随 hue 转 —— 转了反而会偏色） ---------- */
+  --ink:         #1f1e1c;   /* 深墨（不用纯黑） */
+  --ink-2:       #6a6863;
+  --ink-3:       #9a9891;
 
   /* ---------- 身份色：赭红（默认 hue=11） ----------
      🔑 用 HSL + --brand-hue 表达，旋转色相只改这一个数字，
@@ -56,8 +60,8 @@
   --bad:         #b8342a;
 
   /* ---------- 顶栏 ---------- */
-  --bar-bg:      #fffefb;
-  --bar-line:    #e6dfd2;
+  --bar-bg:      hsl(calc(var(--brand-hue) + 30) 50% 99%);
+  --bar-line:    hsl(calc(var(--brand-hue) + 30) 22% 88%);
 
   /* ---------- 网格：纸质档不要网格 ---------- */
   --grid:        transparent;
@@ -79,12 +83,12 @@
    提亮一档（--brand），避免和深墨底糊在一起。
    ============================================================ */
 [data-theme="ink"] {
-  --bg:          #1b1a17;   /* 深墨底，不是纯黑，带一点纸感暖调 */
-  --surface:     #242219;
-  --surface-2:   #2e2b21;
+  --bg:          hsl(calc(var(--brand-hue) + 30) 12% 11%);
+  --surface:     hsl(calc(var(--brand-hue) + 30) 12% 15%);
+  --surface-2:   hsl(calc(var(--brand-hue) + 30) 12% 19%);
 
-  --line:        #3a362c;
-  --line-strong: #4c463a;
+  --line:        hsl(calc(var(--brand-hue) + 30) 10% 26%);
+  --line-strong: hsl(calc(var(--brand-hue) + 30) 10% 33%);
 
   --ink:         #ece8de;   /* 米白字 */
   --ink-2:       #b7b0a2;
@@ -104,8 +108,8 @@
   --warn-tint:   #3a3222;
   --bad:         #e08a7c;
 
-  --bar-bg:      #242219;
-  --bar-line:    #3a362c;
+  --bar-bg:      hsl(calc(var(--brand-hue) + 30) 12% 15%);
+  --bar-line:    hsl(calc(var(--brand-hue) + 30) 10% 26%);
 
   --grid:        transparent;
 }

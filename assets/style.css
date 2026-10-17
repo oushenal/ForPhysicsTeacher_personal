@@ -744,6 +744,42 @@ h1, h2, .card-title, .brand-name {
 .hue-label { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 10px; }
 .hue-label-t { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
 .hue-label-d { font-size: 11px; color: var(--ink-3); }
+
+/* 色环拾取器：conic-gradient 画环，中间挖空成圆环 */
+.huewheel-wrap { display: flex; flex-direction: column; gap: 12px; }
+.huewheel {
+  position: relative; width: 168px; height: 168px;
+  border-radius: 50%;
+  background: conic-gradient(
+    hsl(0 58% 42%), hsl(30 58% 42%), hsl(60 58% 42%), hsl(90 58% 42%),
+    hsl(120 58% 42%), hsl(150 58% 42%), hsl(180 58% 42%), hsl(210 58% 42%),
+    hsl(240 58% 42%), hsl(270 58% 42%), hsl(300 58% 42%), hsl(330 58% 42%),
+    hsl(360 58% 42%)
+  );
+  cursor: pointer; touch-action: none;
+  outline: none;
+}
+.huewheel:focus-visible { box-shadow: 0 0 0 2px var(--brand); }
+/* 中间挖空成圆环，露出纸底，指针能看清 */
+.huewheel::after {
+  content: ""; position: absolute; inset: 26%;
+  border-radius: 50%; background: var(--surface);
+}
+.huewheel-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 16px; height: 16px; margin: -8px;
+  border-radius: 50%;
+  background: #fff; border: 2px solid rgba(0,0,0,0.35);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  z-index: 2; pointer-events: none;
+}
+
+.huewheel-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.huewheel-val { font-size: var(--fs-sm); color: var(--ink-2); }
+.huewheel-val b { font-family: var(--font-mono); color: var(--ink); }
+.huewheel-chip { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); flex: none; }
+.hue-preset-label { font-size: 11px; color: var(--ink-3); }
+
 .huegroup { display: flex; flex-wrap: wrap; gap: 8px; }
 .hueopt {
   display: flex; align-items: center; gap: 7px; padding: 7px 12px 7px 8px;
@@ -758,7 +794,6 @@ h1, h2, .card-title, .brand-name {
   border: 1px solid rgba(0,0,0,0.12);
 }
 .hue-name { font-size: var(--fs-sm); }
-.hue-now { font-size: 11px; color: var(--ink-3); margin-left: 2px; }
 
 /* ============================================================
    作业登记 · 花名册
