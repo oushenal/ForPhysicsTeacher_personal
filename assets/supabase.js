@@ -41,6 +41,14 @@ export function currentUser() { return session?.user || null; }
 export function currentEmail() { return session?.user?.email || ''; }
 export function isSignedIn() { return !!session?.access_token; }
 
+/** 显示名：优先 user_metadata.display_name，没有就回落邮箱前缀 */
+export function currentDisplayName() {
+  const u = session?.user;
+  const meta = (u && u.user_metadata) || {};
+  if (meta.display_name) return meta.display_name;
+  return (u?.email || '').split('@')[0] || '';
+}
+
 export function signOut() { writeSession(null); }
 
 /** base64url → JSON（JWT payload） */
@@ -97,7 +105,11 @@ function saveSessionFrom(j) {
     access_token: j.access_token,
     refresh_token: j.refresh_token || '',
     expires_at: Date.now() + Math.max(60, (j.expires_in || 3600) - 60) * 1000,
-    user: { id: claims.sub || j.user?.id || '', email: claims.email || j.user?.email || '' },
+    user: {
+      id: claims.sub || j.user?.id || '',
+      email: claims.email || j.user?.email || '',
+      user_metadata: (claims.user_metadata) || (j.user && j.user.user_metadata) || {},
+    },
   });
 }
 
@@ -344,6 +356,90 @@ export const sbStore = {
     });
   },
 };
+
+/* ------------------------------------------------------------
+   账户管理 —— 改显示名 / 改密码 / 注销（全部打 GoTrue 的 /user）
+   ------------------------------------------------------------
+   这些操作都要求带登录令牌；令牌失效统一走 ensureFresh 的刷新逻辑，
+   实在刷不动就清会话并抛「登录已失效」。
+   ------------------------------------------------------------ */
+
+/** 打一个 GoTrue /auth/v1/user 的请求（PATCH 改 / GET 查 / PUT 更新） */
+async function userReq(method, body) {
+  const token = await ensureFresh();
+  if (!token) throw new Error('NOT_SIGNED_IN');
+  const res = await fetch(`${BASE}/auth/v1/user`, {
+    method,
+    headers: { apikey: KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 401 || res.status === 403) {
+    writeSession(null);
+    throw new Error('登录已失效，请重新登录');
+  }
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(authErr(res, j));
+  }
+  return res.json();
+}
+
+/** 改显示名（存 user_metadata.display_name），返回新名字 */
+export async function updateDisplayName(name) {
+  const n = String(name || '').trim();
+  if (!n) throw new Error('名字不能是空的');
+  const j = await userReq('PUT', { data: { display_name: n } });
+  // 把新 metadata 写回本地会话，让顶栏立刻跟着变
+  const meta = (j.user_metadata) || (j.data) || {};
+  if (session) {
+    session.user = { ...(session.user || {}), user_metadata: { ...(session.user?.user_metadata || {}), ...meta } };
+    writeSession(session);
+  }
+  return n;
+}
+
+/** 改密码（GoTrue 会顺带刷新 access_token，所以要走一次完整会话重存） */
+export async function updatePassword(newPassword) {
+  if (!newPassword || String(newPassword).length < 6) throw new Error('密码至少 6 位');
+  const token = await ensureFresh();
+  if (!token) throw new Error('NOT_SIGNED_IN');
+  const res = await fetch(`${BASE}/auth/v1/user`, {
+    method: 'PUT',
+    headers: { apikey: KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  if (res.status === 401 || res.status === 403) {
+    writeSession(null);
+    throw new Error('登录已失效，请重新登录');
+  }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(authErr(res, j));
+  // 改密码返回的新 token 直接续上，避免用户被登出
+  if (j.access_token) {
+    saveSessionFrom({ ...j, refresh_token: j.refresh_token || (session && session.refresh_token) || '' });
+  }
+  return true;
+}
+
+/** 注销账户（不可恢复，会连带删掉该用户名下所有数据 —— 外键 on delete cascade） */
+export async function deleteAccount() {
+  const token = await ensureFresh();
+  if (!token) throw new Error('NOT_SIGNED_IN');
+  const res = await fetch(`${BASE}/auth/v1/user`, {
+    method: 'DELETE',
+    headers: { apikey: KEY, Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401 || res.status === 403) {
+    writeSession(null);
+    throw new Error('登录已失效，请重新登录');
+  }
+  if (!res.ok && res.status !== 204) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(authErr(res, j));
+  }
+  signOut();
+  return true;
+}
 
 /* ------------------------------------------------------------
    自检 —— 「页面是空的」有 N 种原因，必须摊开说清楚，不让人猜

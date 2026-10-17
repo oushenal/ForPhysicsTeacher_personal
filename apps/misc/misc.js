@@ -17,9 +17,9 @@
    路由：'#/misc'            杂项首页
          '#/misc/~view/<id>'  打开一个上传的文件（~ 开头不会和别的段冲突）
    ============================================================ */
-import { el } from '../../assets/dom.js?v=34';
-import { isSignedIn, sb, sbStore } from '../../assets/supabase.js?v=34';
-import { normalizeUrl } from '../../assets/links.js?v=34';
+import { el } from '../../assets/dom.js?v=38';
+import { isSignedIn, sb, sbStore } from '../../assets/supabase.js?v=38';
+import { normalizeUrl } from '../../assets/links.js?v=38';
 
 const BUCKET = 'misc';
 const VIEW_PREFIX = '~view';
@@ -507,7 +507,7 @@ export function renderMisc(segments = []) {
   if (empty) {
     const hint = el('div', 'linkadd');
     hint.appendChild(el('span', 'mk', '○'));
-    hint.appendChild(el('span', 'why', '还没有上传过东西。'));
+    hint.appendChild(el('span', 'why', '这里还空着，等待添砖加瓦中…'));
     list.appendChild(hint);
   }
   list.appendChild(up);
@@ -516,14 +516,17 @@ export function renderMisc(segments = []) {
   f.appendChild(list);
 
   if (!mine.length && !S.error) {
-    const box = el('div', 'howto');
-    box.innerHTML =
+    const help = el('details', 'authtips empty-help');
+    help.appendChild(el('summary', null, '帮助 · 能传什么、存在哪'));
+    const body = el('div');
+    body.innerHTML =
       `<p><b>能传什么</b>：任何自包含的 HTML —— 演示页、点名表、某个工具的小页面。</p>
        <p>文件存在 <b>私有桶</b> 里，地址不能直接在浏览器打开，必须登录后来这儿看。
           预览用独立沙箱，页面里的脚本碰不到本站的登录状态。</p>
        <p>只是想跳到一个已有的网址（比如大巴点名表）？用「添加外链」。
           <b>不登录也能看到</b>的那几条在旁边「站外链接」里，写在 <code>assets/config.js</code>。</p>`;
-    f.appendChild(box);
+    help.appendChild(body);
+    f.appendChild(help);
   }
 
   return f;

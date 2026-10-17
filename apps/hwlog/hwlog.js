@@ -11,10 +11,10 @@
          '#/hwlog/<班名>'              该班作业批次列表
          '#/hwlog/<班名>/<assignmentId>' 打钩录入
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=34';
-import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=34';
-import { renderAuthCard } from '../../assets/authcard.js?v=34';
-import { renderImport, IMPORT_SEG } from './import.js?v=34';
+import { el, safeDecode } from '../../assets/dom.js?v=38';
+import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=38';
+import { renderAuthCard } from '../../assets/authcard.js?v=38';
+import { renderImport, IMPORT_SEG } from './import.js?v=38';
 
 /* ------------------------------------------------------------
    标记定义 —— 顺序即点击循环顺序
@@ -193,7 +193,7 @@ function renderOverview() {
 /* ------------------------------------------------------------
    某个班的批次列表
    ------------------------------------------------------------ */
-function assignmentRow(c, a) {
+function assignmentRow(c, a, idx, arr) {
   const row = el('div', 'linkrow');
 
   const link = el('a', 'linkrow-a');
@@ -204,8 +204,59 @@ function assignmentRow(c, a) {
   link.appendChild(el('span', 'link-go', '→'));
   row.appendChild(link);
 
-  row.appendChild(twoStepDelete(() => removeAssignment(c, a)));
+  const act = el('span', 'rowact');
+
+  // ↑/↓ 调整次序 —— 延后录入 / 补录的时候，要把新作业挪到它该在的位置。
+  // （不做 HTML5 拖拽：触屏上拖拽体验差，老师多半用手机录作业；上下按钮两下就到位。）
+  const up = button('↑', 'iconbtn');
+  const dn = button('↓', 'iconbtn');
+  up.disabled = idx === 0;
+  dn.disabled = idx === arr.length - 1;
+  up.title = '上移（改变显示顺序）';
+  dn.title = '下移（改变显示顺序）';
+  up.addEventListener('click', () => moveAssignment(c, arr, idx, -1, up));
+  dn.addEventListener('click', () => moveAssignment(c, arr, idx, +1, dn));
+  act.appendChild(up);
+  act.appendChild(dn);
+
+  act.appendChild(twoStepDelete(() => removeAssignment(c, a)));
+  row.appendChild(act);
   return row;
+}
+
+/**
+ * 交换两个相邻批次的 sort，并写回数据库。
+ * arr 是**显示顺序**数组（最新在前 = sort 降序），idx 即行号：
+ *   「上移」(dir=-1) = 与上面那次（idx-1）交换
+ *   「下移」(dir=+1) = 与下面那次（idx+1）交换
+ * 交换方式 = 互换两者的 sort 值（若相等则用序号兜底错开）。
+ */
+async function moveAssignment(c, arr, idx, dir, btn) {
+  const a = arr[idx];
+  const b = arr[idx + dir];
+  if (!a || !b) return;
+  btn.disabled = true;
+
+  // ⚠️ 局部变量千万别叫 sb —— 会遮蔽模块顶部 import 进来的 Supabase 客户端 sb
+  const sortA = a.sort ?? 0;
+  const sortB = b.sort ?? 0;
+  // 简单交换 sort 值；若两值相等（历史数据 sort 可能都是 0），错开一格
+  let na = sortB;
+  let nb = sortA;
+  if (na === nb) { na = sortA - dir; nb = sortB + dir; }
+
+  try {
+    // 先改数据库（各自写自己的 sort），再改内存，顺序反了重绘会用旧值盖掉
+    await sb.update('assignments', `id=eq.${a.id}`, { sort: na });
+    await sb.update('assignments', `id=eq.${b.id}`, { sort: nb });
+    a.sort = na;
+    b.sort = nb;
+    S.error = '';
+    rerender();
+  } catch (e) {
+    S.error = '调整顺序失败：' + e.message;
+    rerender();
+  }
 }
 
 /** 两步确认的删除按钮：点「删除」变成「确认删除 / 取消」。
@@ -375,11 +426,17 @@ function renderCohort(c) {
   }
 
   const list = el('div', 'linklist');
-  for (const a of [...c.assignments].reverse()) list.appendChild(assignmentRow(c, a));
+  // 显示顺序 = 最新在前（sort 大的在上面）。arr 就是显示顺序数组，
+  // idx 直接对应「第几行」，↑/↓ 语义跟着视觉走，不绕弯。
+  const disp = [...c.assignments].sort((x, y) => (y.sort ?? 0) - (x.sort ?? 0));
+  for (let i = 0; i < disp.length; i++) {
+    list.appendChild(assignmentRow(c, disp[i], i, disp));
+  }
   f.appendChild(list);
 
   const tip = el('p', 'howto-detail',
-    '「导出表格」把整个班导出成 CSV：行是学生、列是每次作业，末尾带按时交/补交/未交/请假/合计统计列'
+    '右侧 ↑↓ 可调整作业次序（补录、延后录入时用）。「导出表格」把整个班导出成 CSV：'
+    + '行是学生、列是每次作业，末尾带按时交/补交/未交/请假/合计统计列'
     + '—— 和你原来那份「作业登记总表.xlsx」结构一致，直接用 Excel 或 WPS 打开即可。');
   f.appendChild(tip);
 

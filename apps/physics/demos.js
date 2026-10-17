@@ -14,7 +14,7 @@
 
    开关与路径在 assets/config.js 的 repo 段。
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=34';
+import { el, safeDecode } from '../../assets/dom.js?v=38';
 
 export const DEMO_DIR = 'apps/physics/demos';
 const INDEX_JSON = 'apps/physics/demos.json';
@@ -148,21 +148,25 @@ function emptyBox(detail, onRetry) {
   const box = el('div', 'linklist');
   const head = el('div', 'linkadd');
   head.appendChild(el('span', 'mk', '○'));
-  head.appendChild(el('span', 'why', '还没有取到演示文件。'));
+  // 简洁一句 —— 详细说明收进下面「帮助」折叠区，别把空页面堆成说明书
+  head.appendChild(el('span', 'why', '这里还空着，等待添砖加瓦中…'));
+  box.appendChild(head);
 
-  const body = el('div', 'howto');
+  // 「帮助」折叠区：点开才看到怎么加演示
   const repoName = 'oushenal/teacher-workbench';
+  const help = el('details', 'authtips empty-help');
+  help.appendChild(el('summary', null, '帮助 · 怎么往这里加演示'));
+  const body = el('div');
   body.innerHTML =
-    `<p>演示文件放在 GitHub 仓库的 <code>apps/physics/demos/</code> 目录里。放进去之后刷新本页就自动出现，<b>不用改任何代码</b>。</p>
+    `<p>演示文件放在 GitHub 仓库的 <code>apps/physics/demos/</code> 目录里，放进去刷新就自动出现。</p>
      <p class="howto-step"><span class="step-no">1</span>浏览器打开 <code>github.com/${repoName}/tree/main/apps/physics/demos</code></p>
      <p class="howto-step"><span class="step-no">2</span>点 <b>Add file → Upload files</b></p>
      <p class="howto-step"><span class="step-no">3</span>把 .html 拖进去 → 点 <b>Commit changes</b></p>`;
+  help.appendChild(body);
+  box.appendChild(help);
 
   const more = el('p', 'howto-detail');
   more.textContent = detail ? `排查记录 —— ${detail}` : '';
-
-  box.appendChild(head);
-  box.appendChild(body);
   if (detail) box.appendChild(more);
 
   const foot = el('div', 'linkadd');

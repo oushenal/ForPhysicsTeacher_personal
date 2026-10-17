@@ -283,10 +283,13 @@ h1, h2, .card-title, .brand-name {
               color var(--dur) var(--ease),
               border-color var(--dur) var(--ease);
 }
+/* 编辑按钮（✎）排在删除（×）左边；编号在最右 right:22px 不动 */
+.card-del.card-edit { right: 72px; }
 .card-wrap:hover .card-del,
 .card-del:focus-visible,
 .card-del[data-armed="1"] { opacity: 1; }
 .card-del:hover { color: var(--bad); border-color: var(--bad); opacity: 1; }
+.card-del.card-edit:hover { color: var(--brand); border-color: var(--brand); }
 .card-del[data-armed="1"] {
   opacity: 1; color: var(--brand); border-color: var(--brand); font-weight: 600;
 }
@@ -675,6 +678,87 @@ h1, h2, .card-title, .brand-name {
   font-family: var(--font-mono); font-size: 11px; line-height: 1.7; color: var(--ink-2);
   white-space: pre-wrap; word-break: break-all;
 }
+
+/* 空状态里的「帮助」折叠区：贴边、不抢主提示的戏 */
+.empty-help {
+  margin: 0; padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.empty-help summary {
+  cursor: pointer; font-size: var(--fs-sm); color: var(--ink-2);
+  list-style: none; display: flex; align-items: center; gap: 6px;
+}
+.empty-help summary::-webkit-details-marker { display: none; }
+.empty-help summary::before { content: "＋"; font-family: var(--font-mono); color: var(--ink-3); transition: transform var(--dur) var(--ease); }
+.empty-help[open] summary::before { content: "－"; }
+.empty-help p { margin: 12px 0; font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.8; }
+.empty-help p:last-child { margin-bottom: 0; }
+
+/* ============================================================
+   设置页
+   ============================================================ */
+.setcard {
+  padding: 18px 20px; margin-bottom: 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+}
+.setcard .sect { margin-top: 0; }
+
+.setrow {
+  display: flex; align-items: center; gap: 16px;
+  padding: 13px 0; border-top: 1px solid var(--line);
+}
+.setrow:first-of-type { border-top: 0; }
+.setrow-l { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.setrow-label { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.setrow-desc { font-size: 11px; color: var(--ink-3); line-height: 1.6; }
+.setrow-ctl { display: flex; align-items: center; gap: 8px; flex: none; }
+.setrow-ctl .input { width: 180px; }
+
+@media (max-width: 640px) {
+  .setrow { flex-wrap: wrap; gap: 10px; }
+  .setrow-l { flex: 1 1 100%; }
+  .setrow-ctl { flex: 1 1 100%; }
+  .setrow-ctl .input { flex: 1 1 auto; min-width: 0; width: auto; }
+}
+
+/* 外观：主题选择 */
+.themegroup { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.themeopt {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  font: inherit; text-align: left; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r); cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.themeopt:hover { border-color: var(--line-strong); }
+.themeopt[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-tint); }
+.themeopt .sw { flex: none; width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--line-strong); overflow: hidden; }
+/* 主题色块预览：左半底、右半文字，一眼看出对比 */
+.sw-paper { background: linear-gradient(90deg, #faf8f3 50%, #a8442d 50%); }
+.sw-ink   { background: linear-gradient(90deg, #1b1a17 50%, #d0705a 50%); }
+.themeopt-txt { display: flex; flex-direction: column; gap: 2px; }
+.themeopt .nm { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.themeopt .dsc { font-size: 11px; color: var(--ink-3); }
+
+/* 身份色色相：只转色环，饱和度/亮度不变 */
+.hue-label { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 10px; }
+.hue-label-t { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.hue-label-d { font-size: 11px; color: var(--ink-3); }
+.huegroup { display: flex; flex-wrap: wrap; gap: 8px; }
+.hueopt {
+  display: flex; align-items: center; gap: 7px; padding: 7px 12px 7px 8px;
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.hueopt:hover { border-color: var(--line-strong); }
+.hueopt[aria-pressed="true"] { border-color: var(--brand); }
+.hue-swatch {
+  width: 16px; height: 16px; border-radius: 50%; flex: none;
+  border: 1px solid rgba(0,0,0,0.12);
+}
+.hue-name { font-size: var(--fs-sm); }
+.hue-now { font-size: 11px; color: var(--ink-3); margin-left: 2px; }
 
 /* ============================================================
    作业登记 · 花名册

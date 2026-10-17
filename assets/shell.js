@@ -4,19 +4,22 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=34';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=34';
+import { $, el, safeDecode } from './dom.js?v=38';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=38';
 import {
   renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
-} from '../apps/hwlog/hwlog.js?v=34';
+} from '../apps/hwlog/hwlog.js?v=38';
 import {
   renderScore, bindRerender as bindScoreRerender, primeScore,
-} from '../apps/score/score.js?v=34';
-import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=34';
+} from '../apps/score/score.js?v=38';
+import { captureSessionFromUrl, isSignedIn, currentDisplayName, currentEmail } from './supabase.js?v=38';
 import {
   loadLinks, customLinks, resetLinks, addLink, removeLink, normalizeUrl,
-} from './links.js?v=34';
-import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=34';
+} from './links.js?v=38';
+import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=38';
+import { renderSettings as renderSettingsPage } from '../apps/settings/settings.js?v=38';
+import { applyStoredTheme } from './theme.js?v=38';
+import { applyOverride, setOverride, clearOverride } from './overrides.js?v=38';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）
@@ -98,23 +101,8 @@ const EXTRA_NAV = [{ no: '', path: '#/settings', name: '设置', short: '设置'
 const TAB_MAX = 4;
 
 /* ------------------------------------------------------------
-   2. 环境状态
-   ------------------------------------------------------------
-   ⚠️ 必须是「当前真实状态」，不能写死。
-      页面什么都不显示的时候，用户第一件事就是看这里为什么 ——
-      这一条要是说了假话，比不显示更糟。
+   2. （已移除）环境状态 —— 挪到设置页 apps/settings/settings.js
    ------------------------------------------------------------ */
-function envStatus() {
-  const signed = isSignedIn();
-  return [
-    { mark: '●', state: 'ok', label: '本机存储', value: '可用' },
-    signed
-      ? { mark: '●', state: 'ok', label: 'Supabase', value: '已登录' }
-      : { mark: '○', state: 'off', label: 'Supabase', value: '未登录' },
-    { mark: '●', state: 'ok', label: '作业发布', value: '沿用现有地址' },
-  ];
-}
-
 const BUILD = { stage: 'S6 加板块 · 杂项上传', version: 'v0.6' };
 
 /* ------------------------------------------------------------
@@ -149,14 +137,6 @@ function toast(msg) {
 /** 路由片段（已解码）：'#/physics/abc.html' → ['physics','abc.html'] */
 function parseSegments() {
   return parseRoute().split('/').filter(Boolean).map(safeDecode);
-}
-
-/** 状态标记：● 就绪 / ◐ 待配置 / ○ 未启用 */
-function marker(state, mark) {
-  const s = el('span', 'mk', mark || '○');
-  s.dataset.state = state;
-  s.setAttribute('aria-hidden', 'true');
-  return s;
 }
 
 /** 小节标题：名称 + 计数 + 一条撑满的细线 */
@@ -241,13 +221,6 @@ function cardView(m) {
   a.appendChild(el('h2', 'card-title', m.name));
   a.appendChild(el('p', 'card-desc', m.desc));
 
-  const meta = el('div', 'card-meta');
-  meta.appendChild(marker(m.meta.state, m.meta.mark));
-  const t = el('span');
-  t.innerHTML = `<b>${m.meta.text}</b>`;
-  meta.appendChild(t);
-  a.appendChild(meta);
-
   const foot = el('div', 'card-foot');
   const cta = el('span', 'card-cta', m.cta);
   if (m.external) cta.appendChild(el('span', 'ext', '↗'));
@@ -288,7 +261,7 @@ function ghostCells(count) {
    🔴 只能加「站外跳转」型：一个名字 + 一个网址。
       站内应用是代码写出来的，点一下「添加」长不出来。
    ------------------------------------------------------------ */
-const HOME = { addOpen: false };
+const HOME = { addOpen: false, edit: null };   // edit = { kind:'builtin', mod } 或 { kind:'custom', link }
 
 /** 上一次渲染时的登录态 —— 用来发现「登录了 / 退出了」，好清掉板块缓存 */
 let lastSignedState = null;
@@ -308,9 +281,115 @@ function customCardModel(link, i) {
   };
 }
 
+/** 内建模块卡片：套 .card-wrap，右上角放一个「编辑」按钮（改标题/描述）。
+    内建模块的 id/路径/跳转不能动，只有 name/desc 能改（存 localStorage）。 */
+function builtinCard(m) {
+  const model = applyOverride(m);
+  const wrap = el('div', 'card-wrap');
+  wrap.appendChild(cardView(model));
+
+  const edit = el('button', 'card-del card-edit');
+  edit.type = 'button';
+  edit.title = '改标题 / 描述';
+  edit.textContent = '✎';
+  edit.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    HOME.edit = { kind: 'builtin', mod: m };
+    render();
+  });
+  wrap.appendChild(edit);
+  return wrap;
+}
+
+/** 编辑表单：内建（覆盖 name/desc）或自定义（改 title/note）通用 */
+function editForm() {
+  const e = HOME.edit;
+  const isBuiltin = e.kind === 'builtin';
+  const title = isBuiltin ? applyOverride(e.mod).name : e.link.title;
+  const desc = isBuiltin ? applyOverride(e.mod).desc : (e.link.note || '');
+
+  const box = el('div', 'formpanel');
+  box.appendChild(el('p', 'formpanel-title', isBuiltin ? `编辑「${e.mod.name}」` : `编辑「${e.link.title}」`));
+
+  if (isBuiltin) {
+    const hint = el('p', 'formhint');
+    hint.innerHTML = '只改卡片上显示的<b>标题</b>和<b>描述</b>，跳转目标不变。'
+      + '改的是本机偏好（存浏览器），换设备或清缓存会还原。';
+    box.appendChild(hint);
+  }
+
+  const rows = el('div', 'formrows');
+  const fTitle = inputEl('');
+  fTitle.value = title;
+  const fDesc = inputEl('一句话说明，可空');
+  fDesc.value = desc;
+  rows.appendChild(fieldRow('标题', fTitle));
+  rows.appendChild(fieldRow('描述', fDesc));
+  box.appendChild(rows);
+
+  const err = el('p', 'form-hint');
+
+  const bar = el('div', 'formbar');
+  const save = el('button', 'btn btn-primary');
+  save.type = 'button';
+  save.textContent = '保存';
+  const cancel = el('button', 'btn');
+  cancel.type = 'button';
+  cancel.textContent = '取消';
+  const close = () => { HOME.edit = null; render(); };
+  cancel.addEventListener('click', close);
+
+  save.addEventListener('click', async () => {
+    const t = fTitle.value.trim();
+    if (!t) { err.dataset.kind = 'bad'; err.textContent = '标题不能空着。'; fTitle.focus(); return; }
+    save.disabled = true; save.textContent = '保存中…';
+    err.dataset.kind = ''; err.textContent = '';
+    try {
+      if (isBuiltin) {
+        setOverride(e.mod.id, { name: t, desc: fDesc.value });
+      } else {
+        const { renameLink } = await import('./links.js?v=38');
+        await renameLink(e.link.id, t, fDesc.value);
+      }
+      HOME.edit = null;
+      toast('已保存');
+      render();
+    } catch (err2) {
+      err.dataset.kind = 'bad';
+      err.textContent = '保存失败：' + err2.message;
+      save.disabled = false; save.textContent = '保存';
+    }
+  });
+
+  for (const inp of [fTitle, fDesc]) {
+    inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') save.click(); });
+  }
+
+  bar.appendChild(save);
+  bar.appendChild(cancel);
+  box.appendChild(bar);
+  box.appendChild(err);
+  setTimeout(() => fTitle.focus(), 0);
+  return box;
+}
+
 function customCard(link, i) {
   const wrap = el('div', 'card-wrap');
   wrap.appendChild(cardView(customCardModel(link, i)));
+
+  // 编辑按钮（✎）
+  const edit = el('button', 'card-del card-edit');
+  edit.type = 'button';
+  edit.title = '改标题 / 描述';
+  edit.textContent = '✎';
+  edit.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    HOME.edit = { kind: 'custom', link };
+    render();
+  });
+  wrap.appendChild(edit);
 
   // 卡片本身是 <a>，里面不能再塞 <button>（HTML 不允许交互元素嵌套），
   // 所以删除按钮做成它的**兄弟**，绝对定位压在角上。
@@ -460,26 +539,16 @@ function renderHome() {
 
   frag.appendChild(pageHead('工作台', `${today.full} ${today.week} · 高一 2 班 / 6 班`));
 
-  const status = el('div', 'status');
-  for (const s of envStatus()) {
-    const item = el('div', 'status-item');
-    item.appendChild(marker(s.state, s.mark));
-    const span = el('span');
-    span.innerHTML = `${s.label} <b>${s.value}</b>`;
-    item.appendChild(span);
-    status.appendChild(item);
-  }
-  frag.appendChild(status);
-
   const mine = customLinks();
   const grid = el('div', 'grid');
-  for (const m of MODULES) grid.appendChild(cardView(m));
+  for (const m of MODULES) grid.appendChild(builtinCard(m));
   mine.forEach((l, i) => grid.appendChild(customCard(l, i)));
   for (const g of ghostCells(MODULES.length + mine.length)) grid.appendChild(g);
   frag.appendChild(grid);
 
   frag.appendChild(homeAddRow());
   if (HOME.addOpen && isSignedIn()) frag.appendChild(addLinkForm());
+  if (HOME.edit) frag.appendChild(editForm());
 
   return frag;
 }
@@ -500,7 +569,8 @@ function renderMore() {
 
   frag.appendChild(section('模块', MODULES.length));
   const mlist = el('div', 'linklist');
-  for (const m of MODULES) {
+  for (const raw of MODULES) {
+    const m = applyOverride(raw);
     mlist.appendChild(linkRow({
       name: m.name, desc: m.desc,
       path: m.external ? null : m.path,
@@ -559,12 +629,7 @@ function renderPlaceholder(mod) {
 }
 
 function renderSettings() {
-  const frag = document.createDocumentFragment();
-  frag.appendChild(placeholderBox(
-    '设置', '设置',
-    '班级与花名册管理、数据导出、账号登录。',
-    '班级花名册随 <b>S3</b> 作业登记一起做；登录随 <b>Supabase</b> 接入时开通（邮箱 Magic Link）。'));
-  return frag;
+  return renderSettingsPage({ rerender: render });
 }
 
 /* ------------------------------------------------------------
@@ -597,8 +662,8 @@ for (const m of MODULES) {
 function paintLogin() {
   const btn = $('#btn-login');
   if (!btn) return;
-  btn.textContent = isSignedIn() ? (currentEmail().split('@')[0] || '已登录') : '登录';
-  btn.title = isSignedIn() ? currentEmail() + '（点击去作业登记）' : '邮箱 + 密码登录';
+  btn.textContent = isSignedIn() ? (currentDisplayName() || '已登录') : '登录';
+  btn.title = isSignedIn() ? `${currentEmail()} · 点击去设置` : '邮箱 + 密码登录';
 }
 
 function render() {
@@ -676,6 +741,9 @@ function boot() {
   bindScoreRerender(render);
   bindMiscRerender(render);
 
+  // 主题要在第一次渲染前恢复，否则会闪一下默认浅色
+  applyStoredTheme();
+
   const today = formatToday();
   const dateEl = $('#top-date');
   if (dateEl) {
@@ -721,7 +789,8 @@ function boot() {
 
   if (login) {
     login.addEventListener('click', () => {
-      location.hash = '#/hwlog';
+      // 已登录 → 去设置（能改名字/密码/外观）；未登录 → 去作业登记触发登录
+      location.hash = isSignedIn() ? '#/settings' : '#/hwlog';
       if (!isSignedIn()) toast('用邮箱和密码登录；第一次用点「创建账号」。');
     });
   }

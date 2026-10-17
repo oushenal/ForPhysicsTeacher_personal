@@ -17,9 +17,9 @@
          '#/score/<目录>/<目录>'      某一层目录
          '#/score/~view/<id>'        打开一份报告（~ 开头的段不会与目录名冲突）
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=34';
-import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=34';
-import { renderAuthCard } from '../../assets/authcard.js?v=34';
+import { el, safeDecode } from '../../assets/dom.js?v=38';
+import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=38';
+import { renderAuthCard } from '../../assets/authcard.js?v=38';
 
 const BUCKET = 'grades';
 const VIEW_PREFIX = '~view';
@@ -666,16 +666,20 @@ function renderDir(pathArr) {
     const box = el('div', 'linklist');
     const head = el('div', 'linkadd');
     head.appendChild(el('span', 'mk', '○'));
-    head.appendChild(el('span', 'why', S.filter ? `这个目录下还没有 ${S.filter} 的记录。` : '这个目录还是空的。'));
+    head.appendChild(el('span', 'why', S.filter ? `这个目录下还没有 ${S.filter} 的记录。` : '这里还空着，等待添砖加瓦中…'));
     box.appendChild(head);
-    const body = el('div', 'howto');
+
+    const help = el('details', 'authtips empty-help');
+    help.appendChild(el('summary', null, '帮助 · 怎么用'));
+    const body = el('div');
     body.innerHTML =
-      `<p><b>怎么用</b>：先用「＋ 新建目录」建学期，比如 <code>2026-2027 上学期</code>；
+      `<p>先用「＋ 新建目录」建学期，比如 <code>2026-2027 上学期</code>；
         再进去建考试目录，比如 <code>第一次阶段性测试</code>；
         然后把生成的学情分析 HTML 拖进来。</p>
        <p>层级想加多深都行 —— 目录只是个名字，不用改任何设置。</p>
        <p>🔴 文档里有学生姓名和分数，走的是<b>私有存储桶</b>，只有登录后你自己能看。</p>`;
-    box.appendChild(body);
+    help.appendChild(body);
+    box.appendChild(help);
     f.appendChild(box);
     return f;
   }
