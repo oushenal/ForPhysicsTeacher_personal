@@ -17,9 +17,9 @@
          '#/score/<目录>/<目录>'      某一层目录
          '#/score/~view/<id>'        打开一份报告（~ 开头的段不会与目录名冲突）
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=19';
-import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=19';
-import { renderAuthCard } from '../../assets/authcard.js?v=19';
+import { el, safeDecode } from '../../assets/dom.js?v=21';
+import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=21';
+import { renderAuthCard } from '../../assets/authcard.js?v=21';
 
 const BUCKET = 'grades';
 const VIEW_PREFIX = '~view';
@@ -35,6 +35,7 @@ const S = {
   classes: ['2班', '6班'],
   filter: '',           // 班级筛选：'' = 全部
   form: null,           // 当前展开的表单
+  sel: new Set(),       // 批量选中的条目 id
   view: null,           // { item, html, error, loading }
   primed: false,
 };
@@ -157,6 +158,59 @@ function breadcrumb(pathArr) {
 }
 
 /* ------------------------------------------------------------
+   行内重命名：把名字换成一个输入框，回车保存 / Esc 取消
+   ------------------------------------------------------------ */
+async function doRename(it, title) {
+  if (it.kind === 'folder') {
+    // 目录改名会连带改所有子孙的 path 前缀 —— 走数据库函数，一条语句原子完成
+    await sb.rpc('rename_archive_folder', { p_id: it.id, p_new_title: title });
+  } else {
+    await sb.update('archive_items', `id=eq.${it.id}`, { title });
+  }
+  await loadItems();
+  S.flash = '已重命名';
+  rerender();
+}
+
+function startRename(row, it) {
+  const link = row.querySelector('.linkrow-a');
+  const nameEl = link?.querySelector('.link-name');
+  if (!nameEl || row.dataset.editing === '1') return;
+  row.dataset.editing = '1';
+
+  const old = it.title.replace(/^▸\s*/, '');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'input input--inline';
+  input.value = old;
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let busy = false;
+  const finish = () => { if (!busy) { busy = true; rerender(); } };
+
+  const commit = async () => {
+    if (busy) return;
+    const v = input.value.trim();
+    if (!v || v === old) { finish(); return; }
+    busy = true;
+    try {
+      await doRename(it, v);
+    } catch (e) {
+      S.error = '重命名失败：' + e.message;
+      rerender();
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(); }
+  });
+  input.addEventListener('blur', () => { if (!busy) commit(); });
+}
+
+/* ------------------------------------------------------------
    行：目录 / 存档
    ------------------------------------------------------------ */
 function folderRow(f, siblings) {
@@ -183,6 +237,10 @@ function folderRow(f, siblings) {
   dn.addEventListener('click', () => swapSort(siblings, idx, idx + 1));
   act.appendChild(up); act.appendChild(dn);
 
+  const rn = button('重命名', 'iconbtn');
+  rn.addEventListener('click', () => startRename(row, f));
+  act.appendChild(rn);
+
   act.appendChild(twoStepDelete(() => removeItem(f)));
   row.appendChild(act);
   return row;
@@ -200,8 +258,20 @@ async function swapSort(siblings, i, j) {
   } catch (e) { S.error = '排序失败：' + e.message; rerender(); }
 }
 
-function entryRow(it) {
+function entryRow(it, onSelectionChange) {
   const row = el('div', 'linkrow');
+
+  // 复选框放在链接**外面** —— 放里面点一下会顺带跳转
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'rowcheck';
+  cb.checked = S.sel.has(it.id);
+  cb.title = '选中后可批量移动';
+  cb.addEventListener('change', () => {
+    if (cb.checked) S.sel.add(it.id); else S.sel.delete(it.id);
+    onSelectionChange();
+  });
+  row.appendChild(cb);
 
   const link = el('a', 'linkrow-a');
   if (it.kind === 'url') {
@@ -220,13 +290,28 @@ function entryRow(it) {
   link.appendChild(el('span', 'link-go', it.kind === 'url' ? '↗' : '→'));
   row.appendChild(link);
 
-  row.appendChild(twoStepDelete(() => removeItem(it)));
+  const act = el('span', 'rowact');
+  const rn = button('重命名', 'iconbtn');
+  rn.addEventListener('click', () => startRename(row, it));
+  act.appendChild(rn);
+
+  const mv = button('移动', 'iconbtn');
+  mv.addEventListener('click', () => {
+    S.sel.clear();
+    S.sel.add(it.id);
+    S.form = { kind: 'move', ids: [it.id] };
+    rerender();
+  });
+  act.appendChild(mv);
+
+  act.appendChild(twoStepDelete(() => removeItem(it)));
+  row.appendChild(act);
   return row;
 }
 
 /** 两步确认删除（同作业登记那套） */
 function twoStepDelete(onConfirm) {
-  const act = el('span', 'rowact');
+  const act = el('span', 'stepdel');
   const del = button('删除', 'iconbtn');
   const ok = button('确认删除', 'iconbtn iconbtn--danger');
   const no = button('取消', 'iconbtn');
@@ -318,6 +403,37 @@ function guessClass(filename) {
 function formPanel(pathArr) {
   const box = el('div', 'formpanel');
   const kind = S.form.kind;
+
+  /* 移动到…：列出所有已存在的目录给你点。
+     只列目录、不列文件 —— 目标只能是目录。 */
+  if (kind === 'move') {
+    const ids = S.form.ids || [];
+    const curK = segKey(pathArr);
+    box.appendChild(el('p', 'formpanel-title', `把 ${ids.length} 项移动到…`));
+
+    const targets = [{ path: [], label: '（根目录）' }]
+      .concat(S.items.filter((i) => i.kind === 'folder')
+        .map((f) => ({ path: folderFullPath(f), label: folderFullPath(f).join(' / ') })));
+
+    const grid = el('div', 'movelist');
+    for (const t of targets) {
+      const isHere = segKey(t.path) === curK;
+      const b = button(t.label, 'picktarget');
+      if (isHere) { b.disabled = true; b.textContent = t.label + '（当前目录）'; }
+      b.addEventListener('click', () => doMove(ids, t.path));
+      grid.appendChild(b);
+    }
+    box.appendChild(grid);
+
+    if (!targets.length) {
+      box.appendChild(el('p', 'page-sub', '还没有别的目录可移。先建一个目录再来。'));
+    }
+
+    const bar = el('div', 'formbar');
+    bar.appendChild(cancelBtn());
+    box.appendChild(bar);
+    return box;
+  }
 
   const rows = el('div', 'formrows');
 
@@ -433,6 +549,21 @@ function nextSort(pathArr) {
   return sibs.reduce((m, i) => Math.max(m, i.sort ?? 0), 0) + 1;
 }
 
+async function doMove(ids, destPath) {
+  try {
+    const n = await sb.rpc('move_archive_items', { p_ids: ids, p_dest: destPath });
+    await loadItems();
+    S.form = null;
+    S.sel.clear();
+    S.flash = `已移动 ${typeof n === 'number' ? n : ids.length} 项`;
+    S.error = '';
+    rerender();
+  } catch (e) {
+    S.error = '移动失败：' + e.message;
+    rerender();
+  }
+}
+
 async function insertItem(patch) {
   try {
     await sb.insert('archive_items', { class_name: '', note: '', ...patch });
@@ -526,10 +657,43 @@ function renderDir(pathArr) {
     return f;
   }
 
+  /* 批量选择条：勾了就出现，「移动到…」对整批生效 */
+  const selbar = el('div', 'selbar');
+  selbar.hidden = true;
+  f.appendChild(selbar);
+
+  const syncSel = () => {
+    // 换目录后把已经不在这页的 id 清掉，避免"看不见却被移走"
+    for (const id of [...S.sel]) {
+      if (!entries.some((e) => e.id === id)) S.sel.delete(id);
+    }
+    selbar.innerHTML = '';
+    selbar.hidden = S.sel.size === 0;
+    if (!S.sel.size) return;
+
+    selbar.appendChild(el('span', 'selbar-n', `已选 ${S.sel.size} 项`));
+
+    const mv = button('移动到…', 'btn-primary');
+    mv.addEventListener('click', () => {
+      S.form = { kind: 'move', ids: [...S.sel] };
+      rerender();
+    });
+    selbar.appendChild(mv);
+
+    const clr = button('清除');
+    clr.addEventListener('click', () => {
+      S.sel.clear();
+      document.querySelectorAll('.rowcheck').forEach((c) => { c.checked = false; });
+      syncSel();
+    });
+    selbar.appendChild(clr);
+  };
+
   const list = el('div', 'linklist');
   for (const fo of folders) list.appendChild(folderRow(fo, folders));
-  for (const it of entries) list.appendChild(entryRow(it));
+  for (const it of entries) list.appendChild(entryRow(it, syncSel));
   f.appendChild(list);
+  syncSel();
 
   return f;
 }

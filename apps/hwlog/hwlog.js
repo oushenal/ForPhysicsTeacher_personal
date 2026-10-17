@@ -11,9 +11,9 @@
          '#/hwlog/<班名>'              该班作业批次列表
          '#/hwlog/<班名>/<assignmentId>' 打钩录入
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=19';
-import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=19';
-import { renderAuthCard } from '../../assets/authcard.js?v=19';
+import { el, safeDecode } from '../../assets/dom.js?v=21';
+import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=21';
+import { renderAuthCard } from '../../assets/authcard.js?v=21';
 
 /* ------------------------------------------------------------
    标记定义 —— 顺序即点击循环顺序
@@ -210,7 +210,7 @@ function assignmentRow(c, a) {
 /** 两步确认的删除按钮：点「删除」变成「确认删除 / 取消」。
     不用 confirm() 弹窗 —— 手机上那个太容易点错，而且拦不住误触。 */
 function twoStepDelete(onConfirm, cls = 'iconbtn') {
-  const act = el('span', 'rowact');
+  const act = el('span', 'stepdel');
 
   const del = button('删除', cls);
   const ok = button('确认删除', cls + ' ' + cls + '--danger');

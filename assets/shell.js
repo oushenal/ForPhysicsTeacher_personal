@@ -4,15 +4,15 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=19';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=19';
+import { $, el, safeDecode } from './dom.js?v=21';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=21';
 import {
   renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
-} from '../apps/hwlog/hwlog.js?v=19';
+} from '../apps/hwlog/hwlog.js?v=21';
 import {
   renderScore, bindRerender as bindScoreRerender, primeScore,
-} from '../apps/score/score.js?v=19';
-import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=19';
+} from '../apps/score/score.js?v=21';
+import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=21';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）

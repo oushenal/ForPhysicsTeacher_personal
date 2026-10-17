@@ -356,6 +356,11 @@ h1, h2, .card-title, .brand-name {
 }
 .rowact { flex: none; display: flex; gap: 6px; align-items: center; }
 
+/* 两步确认的按钮组。⚠️ 别跟 .rowact 用同一个类 ——
+   它会嵌在 .rowact 里面，共用会导致手机上 .rowact{flex:1 1 100%}
+   套两层，删除按钮独占一整行。 */
+.stepdel { flex: none; display: inline-flex; gap: 6px; align-items: center; }
+
 .iconbtn {
   min-height: 28px; padding: 0 10px;
   font: inherit; font-size: var(--fs-sm);
@@ -582,6 +587,40 @@ h1, h2, .card-title, .brand-name {
 
 select.input { padding-right: 8px; }
 input[type="date"].input { font-family: var(--font-mono); font-size: var(--fs-sm); }
+
+/* 行内重命名：把名字换成输入框，不能撑破行 */
+.input--inline {
+  flex: 1 1 auto; min-width: 0; min-height: 30px;
+  font-weight: 600;
+}
+
+/* 行首复选框：放在链接外面，避免点一下顺带跳转 */
+.rowcheck {
+  flex: none; align-self: center;
+  width: 16px; height: 16px; margin: 0 2px 0 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+@media (pointer: coarse) { .rowcheck { width: 20px; height: 20px; } }
+
+/* 批量选择条 */
+.selbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 12px;
+  background: var(--brand-tint); border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+}
+.selbar-n { font-size: var(--fs-sm); font-weight: 600; color: var(--brand-deep); }
+
+/* 移动目标选择 */
+.movelist { display: grid; gap: 6px; max-height: 46vh; overflow: auto; }
+.picktarget {
+  justify-content: flex-start; text-align: left;
+  min-height: 34px; padding: 0 12px;
+  font-size: var(--fs-sm);
+  white-space: normal; line-height: 1.5;
+}
+.picktarget:disabled { color: var(--ink-3); border-style: dashed; }
 
 /* ============================================================
    物理演示 · 站内 iframe 舞台

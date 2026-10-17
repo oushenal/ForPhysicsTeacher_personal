@@ -273,6 +273,9 @@ export const sb = {
     req('PATCH', `${table}?${query}`, { body: patch, prefer: 'return=representation' }),
 
   del: (table, query) => req('DELETE', `${table}?${query}`, { prefer: 'return=minimal' }),
+
+  /** 调数据库函数（PostgREST 的 rpc）。第 5 段 SQL 里的重命名/移动走这个。 */
+  rpc: (fn, args = {}) => req('POST', `rpc/${fn}`, { body: args }),
 };
 
 /* ------------------------------------------------------------
