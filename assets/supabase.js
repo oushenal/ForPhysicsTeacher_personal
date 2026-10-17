@@ -90,24 +90,88 @@ export function captureSessionFromUrl() {
   return { ok: true, email: claims.email || '' };
 }
 
+/** 把 GoTrue 返回的 token 响村落成会话 */
+function saveSessionFrom(j) {
+  const claims = decodeJwt(j.access_token) || {};
+  writeSession({
+    access_token: j.access_token,
+    refresh_token: j.refresh_token || '',
+    expires_at: Date.now() + Math.max(60, (j.expires_in || 3600) - 60) * 1000,
+    user: { id: claims.sub || j.user?.id || '', email: claims.email || j.user?.email || '' },
+  });
+}
+
 /* ------------------------------------------------------------
-   发登录邮件（Magic Link）
+   邮箱 + 密码登录（2026-10-17 起改用这个）
+   ------------------------------------------------------------
+   为什么弃用 Magic Link：邮件里的链接**指向 localhost**。
+   根因是 Supabase 的 Site URL 默认是 http://localhost:3000，
+   而回跳地址又不在白名单里 → GoTrue 回落到 Site URL。
+   密码登录不涉及任何跳转，这个坑整个绕过去了。
    ------------------------------------------------------------ */
-export async function sendMagicLink(email, redirectTo) {
+
+function authErr(res, j) {
+  const code = j.error_code || j.error || '';
+  const msg = j.msg || j.message || '';
+
+  if (code === 'invalid_credentials' || /invalid login/i.test(msg)) {
+    return '邮箱或密码不对。如果是第一次用，点「创建账号」。';
+  }
+  if (code === 'email_not_confirmed' || /not confirmed/i.test(msg)) {
+    return '这个账号还卡在邮箱验证上 —— 去 Supabase 关掉 Authentication → Providers → Email 里的 '
+         + '「Confirm email」，或者直接在 Authentication → Users 里手动新建一个已确认的用户。';
+  }
+  if (code === 'signup_disabled' || /signups not allowed/i.test(msg)) {
+    return 'Supabase 里「允许新用户注册」还关着。两个办法：① 打开它；'
+         + '② 更省事 —— 直接在 Authentication → Users → Add user 里手动建一个账号（勾上自动确认）。';
+  }
+  if (code === 'user_already_exists' || /already registered|already exists/i.test(msg)) {
+    return '这个邮箱已经注册过了，直接点「登录」。';
+  }
+  if (code === 'weak_password' || /password/i.test(code) || /password should be/i.test(msg)) {
+    return '密码太短 —— Supabase 默认要求至少 6 位。';
+  }
+  if (res.status === 429) return '请求太频繁，等一会儿再试。';
+  return msg || `${code || '登录失败'}（HTTP ${res.status}）`;
+}
+
+export async function signInWithPassword(email, password) {
   if (!isConfigured()) throw new Error('还没配置 Supabase 连接');
-  const res = await fetch(`${BASE}/auth/v1/otp`, {
+  const res = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      create_user: true,
-      gotrue_meta_security: {},
-      options: redirectTo ? { email_redirect_to: redirectTo } : {},
-    }),
+    body: JSON.stringify({ email, password }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || !j.access_token) throw new Error(authErr(res, j));
+  saveSessionFrom(j);
+  return true;
+}
+
+/** 返回 'signed-in'（关了邮箱验证，直接进）或 'need-confirm'（还卡在验证） */
+export async function signUpWithPassword(email, password) {
+  if (!isConfigured()) throw new Error('还没配置 Supabase 连接');
+  const res = await fetch(`${BASE}/auth/v1/signup`, {
+    method: 'POST',
+    headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(authErr(res, j));
+  if (j.access_token) { saveSessionFrom(j); return 'signed-in'; }
+  return 'need-confirm';
+}
+
+export async function sendPasswordReset(email) {
+  if (!isConfigured()) throw new Error('还没配置 Supabase 连接');
+  const res = await fetch(`${BASE}/auth/v1/recover`, {
+    method: 'POST',
+    headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
   });
   if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    throw new Error(`发信失败（HTTP ${res.status}）${t ? ' — ' + t.slice(0, 160) : ''}`);
+    const j = await res.json().catch(() => ({}));
+    throw new Error(authErr(res, j));
   }
   return true;
 }
@@ -209,6 +273,73 @@ export const sb = {
     req('PATCH', `${table}?${query}`, { body: patch, prefer: 'return=representation' }),
 
   del: (table, query) => req('DELETE', `${table}?${query}`, { prefer: 'return=minimal' }),
+};
+
+/* ------------------------------------------------------------
+   Storage（成绩归档的 HTML 存这儿）
+   ------------------------------------------------------------
+   🔴 桶是**私有**的：读文件必须带登录令牌，不能给公开直链。
+      前端拿到的是一份 Blob，再用 URL.createObjectURL 给 iframe 用 ——
+      这样地址栏和历史里都不会留下带 token 的地址。
+   ------------------------------------------------------------ */
+async function storageReq(method, path, { body, headers = {} } = {}) {
+  if (!isConfigured()) throw new Error('还没配置 Supabase 连接');
+  const token = await ensureFresh();
+  if (!token) throw new Error('NOT_SIGNED_IN');
+
+  const res = await fetch(`${BASE}/storage/v1/${path}`, {
+    method,
+    headers: { apikey: KEY, Authorization: `Bearer ${token}`, ...headers },
+    body,
+  });
+
+  if (res.status === 401 || res.status === 403) {
+    writeSession(null);
+    throw new Error('登录已失效，请重新登录');
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = JSON.parse(t);
+      msg = j.message || j.error || msg;
+      if (/Bucket not found/i.test(msg)) msg = '存储桶 grades 不存在 —— 第 4 段 SQL 跑了吗？';
+      if (/row-level security|policy/i.test(msg)) msg = '存储桶策略拦住了 —— 第 4 段 SQL 里的 storage.objects 策略建了吗？';
+    } catch { if (t) msg += ' — ' + t.slice(0, 140); }
+    throw new Error(msg);
+  }
+  return res;
+}
+
+export const sbStore = {
+  /**
+   * 上传一个文件。key 用纯 ASCII（时间戳+随机串），
+   * 避免中文文件名在 URL 编码上出幺蛾子 —— 显示名另存在表的 title 里。
+   */
+  async upload(bucket, file) {
+    const uid = currentUser()?.id || 'anon';
+    const ext = (file.name.match(/\.[a-z0-9]+$/i) || ['.html'])[0].toLowerCase();
+    const key = `${uid}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    await storageReq('POST', `object/${bucket}/${key}`, {
+      body: file,
+      headers: { 'Content-Type': file.type || 'text/html' },
+    });
+    return key;
+  },
+
+  /** 下载成 Blob（私有桶不能直接给 iframe src） */
+  async download(bucket, key) {
+    const res = await storageReq('GET', `object/${bucket}/${key}`);
+    return res.blob();
+  },
+
+  async remove(bucket, keys) {
+    if (!keys.length) return;
+    await storageReq('DELETE', `object/${bucket}`, {
+      body: JSON.stringify({ prefixes: keys }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
 };
 
 /* ------------------------------------------------------------

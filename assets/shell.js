@@ -4,10 +4,15 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=15';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=15';
-import { renderHwlog, bindRerender, primeHwlog } from '../apps/hwlog/hwlog.js?v=15';
-import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=15';
+import { $, el, safeDecode } from './dom.js?v=19';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=19';
+import {
+  renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
+} from '../apps/hwlog/hwlog.js?v=19';
+import {
+  renderScore, bindRerender as bindScoreRerender, primeScore,
+} from '../apps/score/score.js?v=19';
+import { captureSessionFromUrl, isSignedIn, currentEmail } from './supabase.js?v=19';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）
@@ -59,11 +64,12 @@ const MODULES = [
   {
     id: 'score', no: '04', path: '#/score',
     name: '成绩归档', short: '成绩', tag: 'S4',
-    store: 'Supabase',
-    desc: '按学期 / 考试归档学情分析，分级目录存放，随时翻出来看。',
-    meta: { state: 'off', mark: '○', text: '还没有归档记录' },
-    cta: '新建归档',
-    note: '先做「归档 + 访问」：把生成的学情分析传上来按学期分目录留档，不再散在文件夹里。',
+    store: '私有存储',
+    desc: '按学期 / 考试分级归档学情分析，随时翻出来看。',
+    meta: { state: 'ok', mark: '●', text: '分级目录 + 私有存储' },
+    cta: '打开归档',
+    note: '只做「存 · 找 · 看」：把你生成好的学情分析传上来按学期分目录留档，'
+        + '不再散在文件夹里。报告含学生姓名分数，走的是私有存储桶，只有登录后你自己能看。',
   },
   {
     id: 'misc', no: '05', path: '#/misc',
@@ -382,12 +388,13 @@ const ROUTES = {
   '/': renderHome,
   '/physics': () => renderPhysicsList(CFG.repo),
   '/hwlog': () => renderHwlog([]),
+  '/score': () => renderScore([]),
   '/misc': renderMisc,
   '/more': renderMore,
   '/settings': renderSettings,
 };
 const TITLES = {
-  '/': '工作台', '/physics': '物理过程演示', '/hwlog': '作业登记',
+  '/': '工作台', '/physics': '物理过程演示', '/hwlog': '作业登记', '/score': '成绩归档',
   '/misc': '杂项', '/more': '更多', '/settings': '设置',
 };
 
@@ -435,6 +442,16 @@ function render() {
     return;
   }
 
+  // 成绩归档（目录树 + 私有存储，同样交给模块分派）
+  if (segs[0] === 'score') {
+    main.appendChild(renderScore(segs));
+    document.title = '成绩归档 · physics';
+    syncNav();
+    paintLogin();
+    primeScore().then((changed) => { if (changed) { render(); } });
+    return;
+  }
+
   const view = ROUTES[path];
   main.appendChild(view ? view() : renderPlaceholder(null));
 
@@ -447,7 +464,8 @@ function render() {
    10. 启动
    ------------------------------------------------------------ */
 function boot() {
-  bindRerender(render);
+  bindHwlogRerender(render);
+  bindScoreRerender(render);
 
   const today = formatToday();
   const dateEl = $('#top-date');
@@ -495,7 +513,7 @@ function boot() {
   if (login) {
     login.addEventListener('click', () => {
       location.hash = '#/hwlog';
-      if (!isSignedIn()) toast('输入邮箱，会收到一封登录邮件；点邮件里的链接就进来了。');
+      if (!isSignedIn()) toast('用邮箱和密码登录；第一次用点「创建账号」。');
     });
   }
 }

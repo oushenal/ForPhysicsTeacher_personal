@@ -11,11 +11,9 @@
          '#/hwlog/<班名>'              该班作业批次列表
          '#/hwlog/<班名>/<assignmentId>' 打钩录入
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=15';
-import {
-  isConfigured, isSignedIn, currentEmail, signOut,
-  sendMagicLink, sb, diagnose,
-} from '../../assets/supabase.js?v=15';
+import { el, safeDecode } from '../../assets/dom.js?v=19';
+import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=19';
+import { renderAuthCard } from '../../assets/authcard.js?v=19';
 
 /* ------------------------------------------------------------
    标记定义 —— 顺序即点击循环顺序
@@ -39,6 +37,7 @@ const S = {
   marks: null,            // 当前录入页：Map(studentId -> mark)，只放异常
   saving: 'idle',         // idle | saving | saved | error
   saveMsg: '',
+  lastEmail: '',          // 上次登录用的邮箱，省得每次重打
 };
 
 let saveTimer = null;
@@ -114,71 +113,9 @@ function button(text, cls) {
 const fmtDate = (d) => (d ? d.slice(5).replace('-', '月') + '日' : '');
 
 /* ------------------------------------------------------------
-   登录面板
-   ------------------------------------------------------------ */
-function renderLogin(extraErr) {
-  const f = document.createDocumentFragment();
-  f.appendChild(pageHead('作业登记', '登录后即可读写你名下的班级和记录。'));
-
-  if (!isConfigured()) {
-    f.appendChild(notice('assets/config.js 里的 supabase.url / key 还没填，无法登录。', 'bad'));
-    return f;
-  }
-
-  const card = el('div', 'authcard');
-  card.appendChild(el('p', 'authcard-lead',
-    '输入你的邮箱，会收到一封登录邮件。点邮件里的链接就进来了 —— 不用记密码。'));
-
-  const row = el('div', 'authrow');
-  const input = document.createElement('input');
-  input.type = 'email';
-  input.className = 'input';
-  input.placeholder = '你的邮箱';
-  input.autocomplete = 'email';
-  const go = button('发登录链接', 'btn-primary');
-
-  const msg = el('p', 'authmsg');
-  if (extraErr) { msg.textContent = extraErr; msg.dataset.kind = 'bad'; }
-
-  go.addEventListener('click', async () => {
-    const email = input.value.trim();
-    if (!email || !email.includes('@')) { msg.textContent = '邮箱填得不对。'; msg.dataset.kind = 'bad'; return; }
-    go.disabled = true; go.textContent = '发送中…';
-    msg.dataset.kind = '';
-    try {
-      await sendMagicLink(email, location.origin + location.pathname);
-      msg.innerHTML = `已发到 <b>${email.replace(/</g, '&lt;')}</b>。去收信点链接，回到本页就登录好了。`;
-    } catch (e) {
-      msg.textContent = e.message;
-      msg.dataset.kind = 'bad';
-      go.disabled = false; go.textContent = '发登录链接';
-    }
-  });
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
-
-  row.appendChild(input);
-  row.appendChild(go);
-  card.appendChild(row);
-  card.appendChild(msg);
-
-  const tips = el('details', 'authtips');
-  tips.appendChild(el('summary', null, '没收到邮件？ / 报错了？'));
-  tips.appendChild(el('p', null,
-    '① 先看垃圾邮件；② 确认 Supabase 里 Email 登录方式和「允许新用户注册」是开的；'
-    + '③ 确认 Authentication → URL Configuration 里加了本页地址。'));
-  const diagBtn = button('运行自检');
-  const diagOut = el('pre', 'diagout');
-  diagBtn.addEventListener('click', async () => {
-    diagOut.textContent = '检测中…';
-    diagOut.textContent = JSON.stringify(await diagnose(), null, 2);
-  });
-  tips.appendChild(diagBtn);
-  tips.appendChild(diagOut);
-  card.appendChild(tips);
-
-  f.appendChild(card);
-  return f;
-}
+   登录面板 —— 已抽到 assets/authcard.js（成绩归档也要用同一份）
+   这里只负责把它摆到页面里，别再写第二份登录表单。
+ ------------------------------------------------------------ */
 
 /* ------------------------------------------------------------
    概览：班级卡片
@@ -256,13 +193,148 @@ function renderOverview() {
    某个班的批次列表
    ------------------------------------------------------------ */
 function assignmentRow(c, a) {
-  const row = el('a', 'linkrow');
-  row.href = `#/hwlog/${encodeURIComponent(c.name)}/${a.id}`;
-  row.appendChild(el('span', 'link-name', a.title));
-  row.appendChild(el('span', 'link-desc', fmtDate(a.assign_date) || ''));
-  row.appendChild(el('span', 'link-url', ''));
-  row.appendChild(el('span', 'link-go', '→'));
+  const row = el('div', 'linkrow');
+
+  const link = el('a', 'linkrow-a');
+  link.href = `#/hwlog/${encodeURIComponent(c.name)}/${a.id}`;
+  link.appendChild(el('span', 'link-name', a.title));
+  link.appendChild(el('span', 'link-desc', fmtDate(a.assign_date) || ''));
+  link.appendChild(el('span', 'link-url', ''));
+  link.appendChild(el('span', 'link-go', '→'));
+  row.appendChild(link);
+
+  row.appendChild(twoStepDelete(() => removeAssignment(c, a)));
   return row;
+}
+
+/** 两步确认的删除按钮：点「删除」变成「确认删除 / 取消」。
+    不用 confirm() 弹窗 —— 手机上那个太容易点错，而且拦不住误触。 */
+function twoStepDelete(onConfirm, cls = 'iconbtn') {
+  const act = el('span', 'rowact');
+
+  const del = button('删除', cls);
+  const ok = button('确认删除', cls + ' ' + cls + '--danger');
+  const no = button('取消', cls);
+  ok.hidden = true; no.hidden = true;
+
+  del.addEventListener('click', () => {
+    del.hidden = true; ok.hidden = false; no.hidden = false;
+    setTimeout(() => { if (!ok.hidden) { del.hidden = false; ok.hidden = true; no.hidden = true; } }, 6000);
+  });
+  no.addEventListener('click', () => {
+    del.hidden = false; ok.hidden = true; no.hidden = true;
+  });
+  ok.addEventListener('click', async () => {
+    ok.disabled = no.disabled = true;
+    ok.textContent = '删除中…';
+    try { await onConfirm(); } catch (e) {
+      S.error = '删除失败：' + e.message;
+      rerender();
+    }
+  });
+
+  act.appendChild(del); act.appendChild(ok); act.appendChild(no);
+  return act;
+}
+
+async function removeAssignment(c, a) {
+  await sb.del('assignments', `id=eq.${a.id}`);   // 明细靠外键级联一起删掉
+  const i = c.assignments.findIndex((x) => x.id === a.id);
+  if (i >= 0) c.assignments.splice(i, 1);
+  if (S.marksFor === a.id) { S.marksFor = ''; S.marks = null; }
+  S.error = '';
+  rerender();
+}
+
+/* ------------------------------------------------------------
+   导出 CSV（结构与旧版 xlsx 一致：行=学生，列=每次作业 + 统计列）
+   ------------------------------------------------------------ */
+const MARK_CH = { ok: '√', missing: '○', redo: '补', leave: '假' };
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+/**
+ * 纯函数：把「班级 + 每次作业的异常标记」拼成 CSV 文本。
+ * 抽成纯函数是为了能脱离浏览器直接测（见 _t.mjs）。
+ * @param cohort  {name, students:[{id,student_no,name}], assignments:[{id,title}]}
+ * @param marksByAssignment Map<assignmentId, Map<studentId, mark>>
+ */
+export function buildCsv(cohort, marksByAssignment) {
+  const asgs = cohort.assignments;
+  const head = ['学号', '姓名', ...asgs.map((a) => a.title),
+    '按时交', '补交', '未交', '请假', '合计'];
+
+  const lines = [head];
+  const total = { ok: 0, redo: 0, missing: 0, leave: 0 };
+
+  for (const s of cohort.students) {
+    const row = [s.student_no, s.name];
+    const cnt = { ok: 0, redo: 0, missing: 0, leave: 0 };
+    for (const a of asgs) {
+      const m = marksByAssignment.get(a.id)?.get(s.id) || 'ok';
+      cnt[m] = (cnt[m] || 0) + 1;
+      row.push(MARK_CH[m] || MARK_CH.ok);
+    }
+    total.ok += cnt.ok; total.redo += cnt.redo;
+    total.missing += cnt.missing; total.leave += cnt.leave;
+    row.push(cnt.ok, cnt.redo, cnt.missing, cnt.leave, asgs.length);
+    lines.push(row);
+  }
+
+  // 合计行：跟旧 xlsx 一样，统计列求和、作业列留空
+  lines.push(['合计', `${cohort.students.length} 人`,
+    ...asgs.map(() => ''), total.ok, total.redo, total.missing, total.leave,
+    cohort.students.length * asgs.length]);
+
+  // \uFEFF = BOM，不加的话 Excel 打开中文是乱码
+  return '\uFEFF' + lines.map((r) => r.map(csvCell).join(',')).join('\r\n');
+}
+
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: (mime || 'text/csv') + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+async function exportCohort(c, btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '导出中…';
+  try {
+    const ids = c.assignments.map((a) => a.id);
+    const rows = ids.length
+      ? await sb.select('hw_marks',
+          'select=assignment_id,student_id,mark&assignment_id=in.('
+          + ids.map((i) => `"${i}"`).join(',') + ')')
+      : [];
+
+    const byAsg = new Map();
+    for (const r of rows || []) {
+      if (!byAsg.has(r.assignment_id)) byAsg.set(r.assignment_id, new Map());
+      byAsg.get(r.assignment_id).set(r.student_id, r.mark);
+    }
+
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    downloadText(`作业登记_${c.name}_${stamp}.csv`, buildCsv(c, byAsg));
+
+    btn.textContent = '已导出 ✓';
+    setTimeout(() => { btn.textContent = label; }, 1800);
+  } catch (e) {
+    S.error = '导出失败：' + e.message;
+    rerender();
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function renderCohort(c) {
@@ -273,9 +345,15 @@ function renderCohort(c) {
   const back = el('a', 'btn', '← 班级');
   back.href = '#/hwlog';
   bar.appendChild(back);
+
   const add = button('＋ 新建一次作业', 'btn-primary');
   add.addEventListener('click', () => createAssignment(c, add));
   bar.appendChild(add);
+
+  const exp = button('导出表格');
+  exp.title = '导出成 CSV，Excel / WPS 双击就能打开（结构和旧版总表一样）';
+  exp.addEventListener('click', () => exportCohort(c, exp));
+  bar.appendChild(exp);
   f.appendChild(bar);
 
   if (S.error) f.appendChild(notice(S.error, 'bad'));
@@ -293,6 +371,12 @@ function renderCohort(c) {
   const list = el('div', 'linklist');
   for (const a of [...c.assignments].reverse()) list.appendChild(assignmentRow(c, a));
   f.appendChild(list);
+
+  const tip = el('p', 'howto-detail',
+    '「导出表格」把整个班导出成 CSV：行是学生、列是每次作业，末尾带按时交/补交/未交/请假/合计统计列'
+    + '—— 和你原来那份「作业登记总表.xlsx」结构一致，直接用 Excel 或 WPS 打开即可。');
+  f.appendChild(tip);
+
   return f;
 }
 
@@ -367,6 +451,17 @@ function renderEntry(c, assignment) {
     }
   });
   bar.appendChild(copy);
+
+  // 删除放在最右边，跟常用操作拉开距离，避免手滑
+  bar.appendChild(twoStepDelete(async () => {
+    await sb.del('assignments', `id=eq.${assignment.id}`);
+    const i = c.assignments.findIndex((x) => x.id === assignment.id);
+    if (i >= 0) c.assignments.splice(i, 1);
+    S.marksFor = ''; S.marks = null; S.error = '';
+    location.hash = `#/hwlog/${encodeURIComponent(c.name)}`;
+    rerender();
+  }, 'btn'));
+
   f.appendChild(bar);
 
   if (S.error) f.appendChild(notice(S.error, 'bad'));
@@ -457,7 +552,14 @@ export function renderHwlog(segments) {
 
   // 令牌失效时 supabase.js 会清掉会话 —— 那就直接回登录面板，
   // 并把原因带过去（别让人对着一个永远失败的重试按钮发呆）
-  if (!isSignedIn()) return renderLogin(S.error || '');
+  if (!isSignedIn()) {
+    f.appendChild(pageHead('作业登记', '登录后即可读写你名下的班级和记录。'));
+    f.appendChild(renderAuthCard({
+      errorText: S.error || '',
+      onSuccess: () => { S.error = ''; S.cohorts = []; S.marksFor = ''; rerender(); },
+    }));
+    return f;
+  }
 
   if (S.loading) { f.appendChild(pageHead('作业登记', '正在读取…')); return f; }
   if (S.error) {

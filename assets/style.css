@@ -4,6 +4,13 @@
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; }
+
+/* 🔴 `[hidden]` 的 display:none 来自**浏览器 UA 样式表**，
+   任何作者样式都能盖掉它 —— 比如 `.btn { display: inline-flex }`
+   就让 hidden 的元素照样显示。
+   两步确认的「确认删除 / 取消」正是靠 hidden 藏起来的，踩过。
+   用 !important 把 UA 的行为抢回来。 */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -341,11 +348,42 @@ h1, h2, .card-title, .brand-name {
 }
 .link-go { flex: none; font-size: var(--fs-sm); color: var(--ink-3); }
 
+/* 带操作按钮的行：链接占满剩余宽度，按钮固定在右端 */
+.linkrow-a {
+  display: flex; align-items: baseline; gap: 16px;
+  flex: 1 1 auto; min-width: 0;
+  text-decoration: none; color: inherit;
+}
+.rowact { flex: none; display: flex; gap: 6px; align-items: center; }
+
+.iconbtn {
+  min-height: 28px; padding: 0 10px;
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--ink-3); background: transparent;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  cursor: pointer; white-space: nowrap;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              background var(--dur) var(--ease);
+}
+.iconbtn:hover { color: var(--brand); border-color: var(--line-strong); background: var(--surface); }
+
+/* 危险动作：平时低调，悬停才变红底 —— 但确认按钮本身要一眼看得见 */
+.iconbtn--danger,
+.btn--danger { color: var(--bad); border-color: var(--line-strong); font-weight: 600; }
+.iconbtn--danger:hover,
+.btn--danger:hover { color: #fff; background: var(--bad); border-color: var(--bad); }
+
+@media (pointer: coarse) {
+  .iconbtn { min-height: 38px; padding: 0 12px; }
+}
+
 @media (max-width: 760px) {
   .linkrow { flex-wrap: wrap; gap: 5px 12px; padding: 14px 16px; }
+  .linkrow-a { flex: 1 1 100%; flex-wrap: wrap; gap: 5px 12px; }
   .link-name { min-width: 0; }
   .link-desc { flex: 1 1 100%; }
   .link-url { max-width: 100%; flex: 1 1 100%; }
+  .rowact { flex: 1 1 100%; justify-content: flex-end; }
 }
 
 /* 列表末尾的「+ 添加」位（功能未开时也要说清为什么） */
@@ -420,8 +458,10 @@ h1, h2, .card-title, .brand-name {
   border-radius: var(--r);
 }
 .authcard-lead { margin: 0 0 16px; font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.75; }
-.authrow { display: flex; gap: 10px; }
+.authform { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.authrow { display: flex; gap: 10px; flex-wrap: wrap; }
 .authrow .input { flex: 1 1 auto; min-width: 0; }
+.authrow .btn { flex: 1 1 auto; }
 
 .input {
   min-height: 34px; padding: 0 12px;
@@ -490,6 +530,58 @@ h1, h2, .card-title, .brand-name {
   margin: 10px 0 0; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
 }
 .savemsg[data-kind="bad"] { color: var(--bad); }
+
+/* ============================================================
+   成绩归档 · 面包屑 / 班级筛选 / 内联表单
+   ============================================================ */
+.breadcrumb {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  margin: -12px 0 22px; font-size: var(--fs-sm);
+}
+.crumb { color: var(--ink-2); text-decoration: none; }
+.crumb:hover { color: var(--brand); }
+.crumb--here { color: var(--ink); font-weight: 600; }
+.crumb-sep { color: var(--ink-3); font-family: var(--font-mono); }
+
+/* 班级筛选：一排小胶囊。选中态用身份色，未选保持素净 */
+.chipbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.chip {
+  min-height: 30px; padding: 0 12px;
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--ink-2); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              background var(--dur) var(--ease);
+}
+.chip:hover { border-color: var(--line-strong); color: var(--ink); }
+.chip[data-on="1"] { color: #fff; background: var(--brand); border-color: var(--brand); }
+
+/* 内联表单 */
+.formpanel {
+  padding: 18px 20px; margin-bottom: 20px;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+}
+.formpanel-title { margin: 0 0 14px; font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.formrows { display: grid; gap: 10px; }
+.field { display: flex; align-items: center; gap: 12px; }
+.field-label { flex: none; width: 4.5em; font-size: var(--fs-sm); color: var(--ink-2); }
+.field .input { flex: 1 1 auto; min-width: 0; }
+.formbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+
+.pickrow {
+  display: grid; gap: 10px;
+  padding: 14px 0; border-top: 1px solid var(--line);
+}
+.pickrow:first-of-type { border-top: 0; }
+.pickname {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+  word-break: break-all;
+}
+
+select.input { padding-right: 8px; }
+input[type="date"].input { font-family: var(--font-mono); font-size: var(--fs-sm); }
 
 /* ============================================================
    物理演示 · 站内 iframe 舞台

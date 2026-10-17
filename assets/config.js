@@ -34,13 +34,13 @@ window.PHYSICS_CONFIG = {
 
   /* ---------- 物理演示的存放位置（GitHub 仓库内路径） ----------
      页面打开时会去列这个目录，把文件放进去就自动出现，不用改代码。
-     见 可行性讨论.md 第 1 节。
-     ⚠️ 仓库还没建（2026-10-16 核实 oushenal/teacher-workbench 返回 404）。
-        建好并把文件推上去之前，列表会走 apps/physics/demos.json 兜底。 */
+     见 可行性讨论.md 第 1 节。 */
   repo: {
     owner: 'oushenal',
-    name: 'teacher-workbench',
+    name: 'ForPhysicsTeacher_personal',   // 2026-10-17 已建好并部署
     branch: 'main',
     demosPath: 'apps/physics/demos',
+    // 线上地址（GitHub Pages），留作参考
+    pagesUrl: 'https://oushenal.github.io/ForPhysicsTeacher_personal/',
   },
 };
