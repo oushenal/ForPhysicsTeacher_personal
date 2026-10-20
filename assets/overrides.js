@@ -10,7 +10,7 @@
 
    覆盖优先级：override.name ?? 模块默认 name。
    ============================================================ */
-import { isSignedIn, sb } from './supabase.js?v=41';
+import { isSignedIn, sb } from './supabase.js?v=49';
 
 let cache = new Map();          // module_id -> { name, note }
 let loaded = false;

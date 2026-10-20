@@ -10,29 +10,20 @@
    账户操作（改密码、注销）都打 GoTrue 的 /auth/v1/user，
    危险操作（注销、覆盖）一律两步确认。
    ============================================================ */
-import { el } from '../../assets/dom.js?v=41';
+import { el, toast } from '../../assets/dom.js?v=49';
 import {
   isSignedIn, currentEmail, currentDisplayName, signOut,
   updateDisplayName, updatePassword, deleteAccount, diagnose,
-} from '../../assets/supabase.js?v=41';
-import { renderAuthCard } from '../../assets/authcard.js?v=41';
-import { listThemes, currentTheme, setTheme, listHues, currentHue, setHue } from '../../assets/theme.js?v=41';
+} from '../../assets/supabase.js?v=49';
+import { renderAuthCard } from '../../assets/authcard.js?v=49';
+import { listThemes, currentTheme, setTheme, listHues, currentHue, setHue } from '../../assets/theme.js?v=49';
 
 let rerender = () => {};
 
 /* ------------------------------------------------------------
    小件
    ------------------------------------------------------------ */
-// 复用页面上全局的 #toast（shell.js 里也有一个，但那个是私有函数，这里自己写一份轻量的）
-let toastTimer = null;
-function toast(msg) {
-  const box = document.getElementById('toast');
-  if (!box) return;
-  box.textContent = msg;
-  box.dataset.show = '1';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { box.dataset.show = '0'; }, 3200);
-}
+/* toast 从 assets/dom.js 共用一份（别再各处自己抄） */
 
 function button(text, cls) {
   const b = el('button', 'btn' + (cls ? ' ' + cls : ''));

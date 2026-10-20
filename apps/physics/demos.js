@@ -14,7 +14,7 @@
 
    开关与路径在 assets/config.js 的 repo 段。
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=41';
+import { el, safeDecode } from '../../assets/dom.js?v=49';
 
 export const DEMO_DIR = 'apps/physics/demos';
 const INDEX_JSON = 'apps/physics/demos.json';

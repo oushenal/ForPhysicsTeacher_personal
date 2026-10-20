@@ -17,9 +17,9 @@
    路由：'#/misc'            杂项首页
          '#/misc/~view/<id>'  打开一个上传的文件（~ 开头不会和别的段冲突）
    ============================================================ */
-import { el } from '../../assets/dom.js?v=41';
-import { isSignedIn, sb, sbStore } from '../../assets/supabase.js?v=41';
-import { normalizeUrl } from '../../assets/links.js?v=41';
+import { el } from '../../assets/dom.js?v=49';
+import { isSignedIn, sb, sbStore } from '../../assets/supabase.js?v=49';
+import { normalizeUrl } from '../../assets/links.js?v=49';
 
 const BUCKET = 'misc';
 const VIEW_PREFIX = '~view';

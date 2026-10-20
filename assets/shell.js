@@ -4,22 +4,22 @@
    当前阶段：S0 外观已定稿（纸质档）。
    ============================================================ */
 
-import { $, el, safeDecode } from './dom.js?v=41';
-import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=41';
+import { $, el, safeDecode, toast } from './dom.js?v=49';
+import { renderPhysicsList, renderDemoStage } from '../apps/physics/demos.js?v=49';
 import {
   renderHwlog, bindRerender as bindHwlogRerender, primeHwlog,
-} from '../apps/hwlog/hwlog.js?v=41';
+} from '../apps/hwlog/hwlog.js?v=49';
 import {
   renderScore, bindRerender as bindScoreRerender, primeScore,
-} from '../apps/score/score.js?v=41';
-import { captureSessionFromUrl, isSignedIn, currentDisplayName, currentEmail } from './supabase.js?v=41';
+} from '../apps/score/score.js?v=49';
+import { captureSessionFromUrl, isSignedIn, currentDisplayName, currentEmail } from './supabase.js?v=49';
 import {
   loadLinks, customLinks, resetLinks, addLink, removeLink, normalizeUrl,
-} from './links.js?v=41';
-import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=41';
-import { renderSettings as renderSettingsPage } from '../apps/settings/settings.js?v=41';
-import { applyStoredTheme } from './theme.js?v=41';
-import { applyOverride, saveOverride, loadOverrides, resetOverrides } from './overrides.js?v=41';
+} from './links.js?v=49';
+import { renderMisc, bindRerender as bindMiscRerender, primeMisc } from '../apps/misc/misc.js?v=49';
+import { renderSettings as renderSettingsPage } from '../apps/settings/settings.js?v=49';
+import { applyStoredTheme } from './theme.js?v=49';
+import { applyOverride, saveOverride, loadOverrides, resetOverrides } from './overrides.js?v=49';
 
 /* ------------------------------------------------------------
    0. 外部配置（改地址去 assets/config.js，不要改这里）
@@ -122,16 +122,6 @@ function parseRoute() {
   const raw = location.hash.replace(/^#/, '');
   const clean = raw.split('?')[0];
   return clean.startsWith('/') ? clean : `/${clean}`;
-}
-
-let toastTimer = null;
-function toast(msg) {
-  const box = $('#toast');     // ⚠️ 别叫 el —— 会遮蔽上面 import 进来的 el()
-  if (!box) return;
-  box.textContent = msg;
-  box.dataset.show = '1';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { box.dataset.show = '0'; }, 3200);
 }
 
 /** 路由片段（已解码）：'#/physics/abc.html' → ['physics','abc.html'] */
@@ -349,7 +339,7 @@ function editForm() {
       if (isBuiltin) {
         await saveOverride(e.mod.id, { name: t, desc: fDesc.value });
       } else {
-        const { renameLink } = await import('./links.js?v=41');
+        const { renameLink } = await import('./links.js?v=49');
         await renameLink(e.link.id, t, fDesc.value);
       }
       HOME.edit = null;

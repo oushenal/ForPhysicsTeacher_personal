@@ -14,9 +14,9 @@
 
    解析逻辑在 ./xlsx-parse.js（纯计算，有 Node 断言脚本）。
    ============================================================ */
-import { el } from '../../assets/dom.js?v=41';
-import { sb } from '../../assets/supabase.js?v=41';
-import { analyzeRows, guessCohortName } from './xlsx-parse.js?v=41';
+import { el } from '../../assets/dom.js?v=49';
+import { sb } from '../../assets/supabase.js?v=49';
+import { analyzeRows, guessCohortName } from './xlsx-parse.js?v=49';
 
 /** 路由片段：'#/hwlog/<班名>/~import' */
 export const IMPORT_SEG = '~import';
@@ -42,7 +42,7 @@ function loadXlsx() {
   xlsxPromise = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     // src 相对**页面**（index.html 所在目录），不是相对这个模块
-    s.src = './assets/vendor/xlsx.full.min.js?v=41';
+    s.src = './assets/vendor/xlsx.full.min.js?v=49';
     s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error('xlsx 已加载但没挂上 window.XLSX')));
     s.onerror = () => reject(new Error('解析库加载失败 —— assets/vendor/xlsx.full.min.js 在吗？'));
     document.head.appendChild(s);

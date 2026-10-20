@@ -17,9 +17,9 @@
          '#/score/<目录>/<目录>'      某一层目录
          '#/score/~view/<id>'        打开一份报告（~ 开头的段不会与目录名冲突）
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=41';
-import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=41';
-import { renderAuthCard } from '../../assets/authcard.js?v=41';
+import { el, safeDecode } from '../../assets/dom.js?v=49';
+import { isSignedIn, currentEmail, sb, sbStore } from '../../assets/supabase.js?v=49';
+import { renderAuthCard } from '../../assets/authcard.js?v=49';
 
 const BUCKET = 'grades';
 const VIEW_PREFIX = '~view';

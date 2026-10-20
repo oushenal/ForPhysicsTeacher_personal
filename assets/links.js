@@ -10,7 +10,7 @@
    自定义板块只出现在「首页卡片」和「更多页清单」，
    **不占手机底栏**（底栏只放内建模块，否则迟早挤爆）。
    ============================================================ */
-import { isSignedIn, sb } from './supabase.js?v=41';
+import { isSignedIn, sb } from './supabase.js?v=49';
 
 let cache = [];
 let loaded = false;

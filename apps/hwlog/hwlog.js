@@ -11,10 +11,11 @@
          '#/hwlog/<班名>'              该班作业批次列表
          '#/hwlog/<班名>/<assignmentId>' 打钩录入
    ============================================================ */
-import { el, safeDecode } from '../../assets/dom.js?v=41';
-import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=41';
-import { renderAuthCard } from '../../assets/authcard.js?v=41';
-import { renderImport, IMPORT_SEG } from './import.js?v=41';
+import { el, safeDecode, toast } from '../../assets/dom.js?v=49';
+import { isSignedIn, currentEmail, signOut, sb } from '../../assets/supabase.js?v=49';
+import { renderAuthCard } from '../../assets/authcard.js?v=49';
+import { renderImport, IMPORT_SEG } from './import.js?v=49';
+import { computeStreaks, streakJobsText } from './streak.js?v=49';
 
 /* ------------------------------------------------------------
    标记定义 —— 顺序即点击循环顺序
@@ -28,6 +29,9 @@ const MARKS = {
 const CYCLE = ['ok', 'missing', 'redo', 'leave'];
 const nextMark = (m) => CYCLE[(CYCLE.indexOf(m) + 1) % CYCLE.length];
 
+/** 路由片段：'#/hwlog/~streak'（跨班统计，不挂在某个班下面） */
+const STREAK_SEG = '~streak';
+
 /* ------------------------------------------------------------
    模块状态
    ------------------------------------------------------------ */
@@ -39,6 +43,10 @@ const S = {
   saving: 'idle',         // idle | saving | saved | error
   saveMsg: '',
   lastEmail: '',          // 上次登录用的邮箱，省得每次重打
+  editing: '',            // 班级页：正在改名的 assignment.id
+  renaming: false,        // 录入页：改名表单是否展开
+  streakMarks: null,      // 全量异常记录 Map<assignmentId, Map<studentId, mark>>（连续缺交统计）
+  streakLoading: false,
 };
 
 let saveTimer = null;
@@ -63,6 +71,72 @@ async function loadCohorts(force = false) {
 
 const findCohort = (name) => S.cohorts.find((c) => c.name === name) || null;
 
+/* ------------------------------------------------------------
+   学号快速标记（移植自本地版右侧栏）
+   ------------------------------------------------------------
+   本地版的用法：只输**缺交**的人，其余自动 √。
+   学号还能只输后两位 —— 2班学号 41401…41445 的最长公共前缀是 414，
+   输 05 就等于 41405。三层识别：完整学号 → 补前缀 → 后缀唯一匹配。
+
+   三个都是纯函数（不碰 DOM），方便以后脱离浏览器断言。
+   ------------------------------------------------------------ */
+
+/** 全班学号的最长公共前缀；至少留 2 位给用户输，没明显前缀就返回 '' */
+function noPrefix(students) {
+  const ids = students.map((s) => String(s.student_no));
+  if (!ids.length) return '';
+  const minLen = Math.min(...ids.map((i) => i.length));
+  let p = '';
+  for (let i = 0; i < minLen; i++) {
+    const ch = ids[0][i];
+    if (ids.every((x) => x[i] === ch)) p += ch;
+    else break;
+  }
+  const keep = p.slice(0, Math.max(0, minLen - 2));
+  return keep.length >= 2 ? keep : '';
+}
+
+/** 一个数字 token → 学号（或错误说明）。byNo: Map<student_no, student> */
+function resolveNo(tok, byNo, students, prefix) {
+  const idLen = String(students[0]?.student_no || '').length;
+
+  // ① 直接就是完整学号
+  if (byNo.has(tok)) return { no: tok };
+
+  let t = tok;
+  if (prefix && t.length === 1) t = '0' + t;    // 输 "5" 当 "05"
+
+  // ② 补上前缀后位数刚好
+  if (prefix && t.length + prefix.length === idLen && byNo.has(prefix + t)) {
+    return { no: prefix + t };
+  }
+
+  // ③ 退回按后缀唯一匹配（兼容把 05 输成 405 的情况）
+  if (t.length >= 2) {
+    const cand = students.filter((s) => String(s.student_no).endsWith(t));
+    if (cand.length === 1) return { no: cand[0].student_no };
+    if (cand.length > 1) return { err: `以 ${t} 结尾的有 ${cand.length} 人` };
+    return { err: `没有学号以 ${t} 结尾` };
+  }
+  return { err: '位数太短认不出' };
+}
+
+/** 一整段文本 → { ids:[studentId…], errs:[{tok, why}] } */
+function parseNos(text, students, prefix) {
+  const byNo = new Map(students.map((s) => [String(s.student_no), s]));
+  const out = { ids: [], errs: [] };
+  const seen = new Set();
+  for (const tok of String(text || '').match(/\d+/g) || []) {
+    const r = resolveNo(tok, byNo, students, prefix);
+    if (r.err) { out.errs.push({ tok, why: r.err }); continue; }
+    const st = byNo.get(r.no);
+    if (!st || seen.has(st.id)) continue;
+    seen.add(st.id);
+    out.ids.push(st.id);
+  }
+  return out;
+}
+
 /** 读一个批次的异常标记 → Map（只含异常） */
 async function loadMarks(assignmentId) {
   const rows = await sb.select(
@@ -84,6 +158,18 @@ async function saveMarks(assignmentId, marks) {
     ? `assignment_id=eq.${assignmentId}&student_id=not.in.(${keep.map((k) => `"${k}"`).join(',')})`
     : `assignment_id=eq.${assignmentId}`;
   await sb.del('hw_marks', filter);
+}
+
+/** 拉**全量**异常记录 → Map<assignmentId, Map<studentId, mark>>（连续缺交统计用） */
+async function loadAllMarks() {
+  const rows = await sb.select('hw_marks', 'select=assignment_id,student_id,mark');
+  const m = new Map();
+  for (const r of rows || []) {
+    if (!r || !r.assignment_id || !r.student_id) continue;
+    if (!m.has(r.assignment_id)) m.set(r.assignment_id, new Map());
+    m.get(r.assignment_id).set(r.student_id, r.mark);
+  }
+  return m;
 }
 
 /* ------------------------------------------------------------
@@ -187,6 +273,16 @@ function renderOverview() {
   }
   f.appendChild(grid);
 
+  // 底部入口：跨班连续缺交统计
+  const tools = el('div', 'linklist homeadd');
+  const streakLink = el('a', 'linkadd linkadd-btn');
+  streakLink.href = `#/hwlog/${STREAK_SEG}`;
+  streakLink.appendChild(el('span', 'mk', '○'));
+  streakLink.appendChild(el('span', 'why', '连续缺交名单'));
+  streakLink.appendChild(el('span', 'homeadd-n', '两个班 · 连续 2 次以上未交'));
+  tools.appendChild(streakLink);
+  f.appendChild(tools);
+
   return f;
 }
 
@@ -194,6 +290,9 @@ function renderOverview() {
    某个班的批次列表
    ------------------------------------------------------------ */
 function assignmentRow(c, a, idx, arr) {
+  // 正在改名的这一行整行换成输入框（列表里就地改，不用开弹窗）
+  if (S.editing === a.id) return assignmentEditRow(c, a);
+
   const row = el('div', 'linkrow');
 
   const link = el('a', 'linkrow-a');
@@ -219,8 +318,83 @@ function assignmentRow(c, a, idx, arr) {
   act.appendChild(up);
   act.appendChild(dn);
 
+  const ren = button('改名', 'iconbtn');
+  ren.title = '改这次作业的名称';
+  ren.addEventListener('click', () => { S.editing = a.id; rerender(); });
+  act.appendChild(ren);
+
   act.appendChild(twoStepDelete(() => removeAssignment(c, a)));
   row.appendChild(act);
+  return row;
+}
+
+/* ------------------------------------------------------------
+   改作业名称
+   ------------------------------------------------------------
+   两处入口（班级列表行内 / 录入页工具栏）共用 renameAssignment。
+   注意表上有 unique(cohort_id, title)：重名会撞库，
+   所以先在内存里查一遍给出人话提示，真撞了再把英文错误转成人话。
+   ------------------------------------------------------------ */
+async function renameAssignment(c, a, raw) {
+  const t = String(raw || '').trim();
+  if (!t) throw new Error('名字不能空着');
+  if (t === a.title) return false;                        // 没改
+  if (c.assignments.some((x) => x.id !== a.id && x.title === t)) {
+    throw new Error(`这个班已经有一次叫「${t}」了`);
+  }
+  await sb.update('assignments', `id=eq.${a.id}`, { title: t });
+  a.title = t;
+  return true;
+}
+
+/** 把 database 的英文报错翻成能看懂的一句 */
+function renameErr(e) {
+  const m = String(e && e.message || '');
+  if (/duplicate|unique|23505/i.test(m)) return '这个班已经有一次同名作业了';
+  return m || '未知错误';
+}
+
+/** 班级列表里的「改名」行：输入框 + 保存 / 取消 */
+function assignmentEditRow(c, a) {
+  const row = el('div', 'linkrow linkrow--edit');
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'input linkrow-input';
+  inp.value = a.title;
+  inp.setAttribute('aria-label', '作业名称');
+  row.appendChild(inp);
+
+  const act = el('span', 'rowact');
+  const save = button('保存', 'iconbtn iconbtn--go');
+  const cancel = button('取消', 'iconbtn');
+  act.appendChild(save);
+  act.appendChild(cancel);
+  row.appendChild(act);
+
+  const close = () => { S.editing = ''; rerender(); };
+  cancel.addEventListener('click', close);
+
+  save.addEventListener('click', async () => {
+    save.disabled = true; save.textContent = '保存中…';
+    try {
+      const changed = await renameAssignment(c, a, inp.value);
+      S.editing = '';
+      if (changed) toast(`已改名为「${a.title}」`);
+      rerender();
+    } catch (e) {
+      save.disabled = false; save.textContent = '保存';
+      inp.focus(); inp.select();
+      toast('改名失败：' + renameErr(e));
+    }
+  });
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); save.click(); }
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+
+  setTimeout(() => { inp.focus(); inp.select(); }, 0);
   return row;
 }
 
@@ -390,6 +564,7 @@ async function exportCohort(c, btn) {
 }
 
 function renderCohort(c) {
+  S.renaming = false;              // 从录入页回到列表时，收起那边的改名表单
   const f = document.createDocumentFragment();
   f.appendChild(pageHead(c.name, `${c.students.length} 人 · ${c.assignments.length} 次作业`));
 
@@ -435,12 +610,66 @@ function renderCohort(c) {
   f.appendChild(list);
 
   const tip = el('p', 'howto-detail',
-    '右侧 ↑↓ 可调整作业次序（补录、延后录入时用）。「导出表格」把整个班导出成 CSV：'
+    '点「改名」可改这次作业的名称；右边 ↑↓ 调整次序（补录、延后录入时用）。'
+    + '「导出表格」把整个班导出成 CSV：'
     + '行是学生、列是每次作业，末尾带按时交/补交/未交/请假/合计统计列'
     + '—— 和你原来那份「作业登记总表.xlsx」结构一致，直接用 Excel 或 WPS 打开即可。');
   f.appendChild(tip);
 
   return f;
+}
+
+/**
+ * 录入页的改名表单（工具栏「改名」展开）。
+ * 和班级列表的行内编辑共用 renameAssignment，校验与写库逻辑只有一份。
+ */
+function renameForm(c, a) {
+  const box = el('div', 'formpanel');
+  box.appendChild(el('p', 'formpanel-title', '改作业名称'));
+
+  const rows = el('div', 'formrows');
+  const field = el('label', 'field');
+  field.appendChild(el('span', 'field-label', '名称'));
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'input';
+  inp.value = a.title;
+  inp.placeholder = '例如：9月24日 练习册 P32';
+  field.appendChild(inp);
+  rows.appendChild(field);
+  box.appendChild(rows);
+
+  const bar = el('div', 'formbar');
+  const save = button('保存', 'btn-primary');
+  const cancel = button('取消');
+  bar.appendChild(save);
+  bar.appendChild(cancel);
+  box.appendChild(bar);
+
+  const close = () => { S.renaming = false; rerender(); };
+  cancel.addEventListener('click', close);
+
+  save.addEventListener('click', async () => {
+    save.disabled = true; save.textContent = '保存中…';
+    try {
+      const changed = await renameAssignment(c, a, inp.value);
+      S.renaming = false;
+      if (changed) toast(`已改名为「${a.title}」`);
+      rerender();
+    } catch (e) {
+      save.disabled = false; save.textContent = '保存';
+      inp.focus(); inp.select();
+      toast('改名失败：' + renameErr(e));
+    }
+  });
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); save.click(); }
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+
+  setTimeout(() => { inp.focus(); inp.select(); }, 0);
+  return box;
 }
 
 async function createAssignment(c, btn) {
@@ -479,6 +708,7 @@ function counts(marks, total) {
 }
 
 function renderEntry(c, assignment) {
+  S.editing = '';                  // 从列表进到录入页，清掉列表里的行内编辑态
   const f = document.createDocumentFragment();
 
   f.appendChild(pageHead(assignment.title, `${c.name} · ${c.students.length} 人`));
@@ -493,6 +723,8 @@ function renderEntry(c, assignment) {
   allOk.addEventListener('click', () => {
     S.marks.clear();
     paintRoster();
+    paintStat();
+    quick.syncInputsFromMarks();     // 右边输入框也要清空
     scheduleSave();
   });
   bar.appendChild(allOk);
@@ -515,6 +747,11 @@ function renderEntry(c, assignment) {
   });
   bar.appendChild(copy);
 
+  const ren = button('改名');
+  ren.title = '改这次作业的名称';
+  ren.addEventListener('click', () => { S.renaming = !S.renaming; rerender(); });
+  bar.appendChild(ren);
+
   // 删除放在最右边，跟常用操作拉开距离，避免手滑
   bar.appendChild(twoStepDelete(async () => {
     await sb.del('assignments', `id=eq.${assignment.id}`);
@@ -527,20 +764,171 @@ function renderEntry(c, assignment) {
 
   f.appendChild(bar);
 
+  // 改名表单（点工具栏「改名」展开）
+  if (S.renaming) f.appendChild(renameForm(c, assignment));
+
   if (S.error) f.appendChild(notice(S.error, 'bad'));
 
   const stat = el('div', 'status');
-  f.appendChild(stat);
-
   const roster = el('div', 'roster');
-  f.appendChild(roster);
-
-  const hint = el('p', 'howto-detail',
-    '点一下学生切换标记：√ 按时交 → ○ 未交 → 补 补交 → 假 请假。改动会自动保存。');
-  f.appendChild(hint);
-
   const saveMsg = el('p', 'savemsg');
-  f.appendChild(saveMsg);
+
+  /* ---------- 布局：左名单 / 右学号面板 ----------
+     电脑端面板贴右（和本地版同一位置）；窄屏落成单列、面板在名单**上面**
+     —— 手机上「输学号」才是主操作，不该先滚过 45 个人才够得着。
+     DOM 顺序 = 面板在前，桌面用 grid 显式放到第 2 列。 */
+  const layout = el('div', 'entry-layout');
+  const mainCol = el('div', 'entry-main');
+  mainCol.appendChild(stat);
+  mainCol.appendChild(roster);
+  mainCol.appendChild(el('p', 'howto-detail',
+    '点一下学生切换标记：√ 按时交 → ○ 未交 → 补 补交 → 假 请假。'
+    + '改动会自动保存；也可以在右边按学号批量输。'));
+  mainCol.appendChild(saveMsg);
+  layout.appendChild(mainCol);
+
+  /* ------------------------------------------------------------
+     学号面板（移植自本地版右侧栏）
+     ------------------------------------------------------------
+     · 三个输入组：未交 / 补交 / 请假，各自独立
+     · 输入框里只写学号（可只写后两位），其余人自动 √
+     · 打开时会把已有标记**反显**到框里 —— 能直接看到谁没交，也能就地改
+     · 与名单双向同步：点名单后重写输入框（正在打字时跳过，不打断）
+     ------------------------------------------------------------ */
+  function buildQuickPanel() {
+    const prefix = noPrefix(c.students);
+    const shortNo = (no) => {
+      const s = String(no);
+      return prefix && s.startsWith(prefix) ? s.slice(prefix.length) : s;
+    };
+    const KINDS = [
+      { k: 'missing', ch: '○', label: '未交', hint: '没交作业' },
+      { k: 'redo', ch: '补', label: '补交', hint: '后来补上了' },
+      { k: 'leave', ch: '假', label: '请假', hint: '请假未交' },
+    ];
+    const Q = { missing: new Set(), redo: new Set(), leave: new Set() };
+    const inputs = {};
+    const chipBoxes = {};
+    const countEls = {};
+
+    const panel = el('aside', 'qpanel');
+    const head = el('div', 'qpanel-head');
+    head.appendChild(el('h2', 'qpanel-t', '按学号标记'));
+    const sub = el('p', 'qpanel-d');
+    sub.innerHTML = prefix
+      ? `只输<b>缺交</b>的人，其余自动 √。前缀 <b>${prefix}</b> 已补好，输后两位就行（<b>05 12 20</b>）。`
+      : '只输<b>缺交</b>的人，其余自动 √。空格 / 逗号 / 换行分隔。';
+    head.appendChild(sub);
+    panel.appendChild(head);
+
+    const applyQuick = (kind, ids) => {
+      const next = new Set(ids);
+      // 上次声明过、这次不声明的 → 如果标记还停在这一组，就恢复成 √
+      for (const id of Q[kind]) {
+        if (!next.has(id) && S.marks.get(id) === kind) S.marks.delete(id);
+      }
+      for (const id of next) S.marks.set(id, kind);
+      Q[kind] = next;
+    };
+
+    const paintChips = (kind, errs = []) => {
+      const box = chipBoxes[kind];
+      box.innerHTML = '';
+      for (const id of Q[kind]) {
+        const st = c.students.find((x) => x.id === id);
+        if (!st) continue;
+        const chip = el('span', 'qchip', shortNo(st.student_no) + ' ' + st.name);
+        chip.title = `${st.student_no} ${st.name}（点一下去掉）`;
+        chip.addEventListener('click', () => {
+          // 从输入框里删掉这个人，再重新解析（保持"输入框是唯一真相"）
+          const rest = [...Q[kind]].filter((x) => x !== id);
+          inputs[kind].value = rest
+            .map((x) => shortNo(c.students.find((s) => s.id === x)?.student_no || ''))
+            .join(' ');
+          syncFromInput(kind);
+        });
+        box.appendChild(chip);
+      }
+      for (const e of errs) {
+        box.appendChild(el('span', 'qchip qchip--bad', `⚠ ${e.tok} · ${e.why}`));
+      }
+      countEls[kind].textContent = String(Q[kind].size);
+    };
+
+    let timer = null;
+    function syncFromInput(kind) {
+      const r = parseNos(inputs[kind].value, c.students, prefix);
+      applyQuick(kind, r.ids);
+      paintChips(kind, r.errs);
+      paintRoster();
+      paintStat();
+      scheduleSave();
+    }
+
+    for (const it of KINDS) {
+      const grp = el('div', 'qgrp');
+      const gh = el('div', 'qgrp-head');
+      const mk = el('span', 'mk', it.ch);
+      mk.dataset.state = it.k === 'missing' ? 'warn' : 'off';
+      gh.appendChild(mk);
+      gh.appendChild(el('span', null, it.label));
+      gh.appendChild(el('span', 'qgrp-hint', it.hint));
+      const cnt = el('span', 'qcount', '0');
+      gh.appendChild(cnt);
+      countEls[it.k] = cnt;
+      grp.appendChild(gh);
+
+      const box = el('div', 'qbox');
+      if (prefix) box.appendChild(el('span', 'qprefix', prefix));
+      const ta = document.createElement('textarea');
+      ta.className = 'qinput';
+      ta.rows = 2;
+      ta.placeholder = it.k === 'missing' ? '05 12 20' : '选填';
+      ta.setAttribute('aria-label', `${it.label}学生学号`);
+      ta.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => syncFromInput(it.k), 140);
+      });
+      inputs[it.k] = ta;
+      box.appendChild(ta);
+      grp.appendChild(box);
+
+      const chips = el('div', 'qchips');
+      chipBoxes[it.k] = chips;
+      grp.appendChild(chips);
+
+      panel.appendChild(grp);
+    }
+
+    /** 名单 → 输入框（点名单后调用；正在打字的那一格跳过，不打断） */
+    function syncInputsFromMarks() {
+      for (const it of KINDS) {
+        const ids = c.students.filter((s) => S.marks.get(s.id) === it.k).map((s) => s.id);
+        Q[it.k] = new Set(ids);
+        countEls[it.k].textContent = String(ids.length);
+        if (document.activeElement === inputs[it.k]) {
+          // 正在这格里打字：不重写内容（会打断光标），但错误提示要照常重算，
+          // 否则框里留着一个认不出的学号却没有告警。
+          const r = parseNos(inputs[it.k].value, c.students, prefix);
+          paintChips(it.k, r.errs);
+          continue;
+        }
+        inputs[it.k].value = ids
+          .map((id) => shortNo(c.students.find((s) => s.id === id)?.student_no || ''))
+          .join(' ');
+        paintChips(it.k);
+      }
+    }
+
+    // 打开时把已有标记反显到框里
+    syncInputsFromMarks();
+    return { node: panel, syncInputsFromMarks };
+  }
+
+  const quick = buildQuickPanel();
+  layout.appendChild(quick.node);     // DOM 在前 → 移动端落在名单上方
+  layout.appendChild(mainCol);        // 桌面端由 CSS 把面板放回第 2 列
+  f.appendChild(layout);
 
   function paintStat() {
     stat.innerHTML = '';
@@ -578,6 +966,7 @@ function renderEntry(c, assignment) {
         else S.marks.set(s.id, nx);
         paintRoster();
         paintStat();
+        quick.syncInputsFromMarks();   // 名单改了 → 右边输入框跟着变
         scheduleSave();
       });
       roster.appendChild(b);
@@ -604,6 +993,126 @@ function renderEntry(c, assignment) {
 
   paintStat();
   paintRoster();
+  return f;
+}
+
+/* ------------------------------------------------------------
+   连续缺交统计（'#/hwlog/~streak'）
+   ------------------------------------------------------------
+   规则见 apps/hwlog/streak.js 的文件头：
+   从最近一次作业往回数「○ 未交」，遇到 √ / 补 / 假 就停；
+   连续 ≥2 次才列出，并显示次数和具体是哪几次。
+
+   ⚠️ 统计基准 = 每个班 sort 最大的那次作业。如果某个批次
+   「建了但还没录」，它会被当成全员 √，把所有人的连续记录打断 ——
+   所以页面顶部把基准作业标题写出来，让人一眼看出数据对不对。
+   ------------------------------------------------------------ */
+function renderStreak() {
+  const f = document.createDocumentFragment();
+
+  f.appendChild(pageHead('连续缺交', '从最近一次作业往回数，连续 2 次及以上未交的学生。'));
+
+  const bar = el('div', 'toolbar');
+  const back = el('a', 'btn', '← 作业登记');
+  back.href = '#/hwlog';
+  bar.appendChild(back);
+
+  // 复制按钮放在顶部工具栏（放页面最下方会被误以为是最后一个班的按钮）
+  const copyLines = [];
+  const cp = button('复制名单');
+  cp.addEventListener('click', async () => {
+    if (!copyLines.length) { toast('没有连续缺交的学生'); return; }
+    const text = `连续缺交（${new Date().toLocaleDateString('zh-CN')}）\n` + copyLines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      cp.textContent = '已复制 ✓';
+      setTimeout(() => { cp.textContent = '复制名单'; }, 1600);
+    } catch {
+      prompt('复制失败，手动选一下吧：', text);
+    }
+  });
+  bar.appendChild(cp);
+  f.appendChild(bar);
+
+  if (S.error) f.appendChild(notice(S.error, 'bad'));
+
+  /* 首次进来先拉全量异常记录 */
+  if (!S.streakMarks) {
+    if (!S.streakLoading) {
+      S.streakLoading = true;
+      loadAllMarks()
+        .then((m) => { S.streakMarks = m; S.streakLoading = false; rerender(); })
+        .catch((e) => { S.streakLoading = false; S.error = '统计失败：' + e.message; rerender(); });
+    }
+    f.appendChild(el('p', 'page-sub', '正在统计…'));
+    return f;
+  }
+
+  const rule = el('div', 'howto');
+  rule.innerHTML =
+    `<p>只算「<b>○ 未交</b>」。遇到 √ 交了、<b>补</b> 补交、<b>假</b> 请假都算中断 —— `
+    + `补交说明交了，请假不算缺交，所以它们都会把连续记录断开。</p>
+     <p>只列出连续 <b>2 次及以上</b>的；只缺 1 次不显示。</p>`;
+  f.appendChild(rule);
+
+  // copyLines 在工具栏那一段已经声明（按钮的闭包要用它）
+  let total = 0;
+
+  for (const c of S.cohorts) {
+    // sort 升序（旧→新）给计算用；显示时按「最新在前」
+    const asg = [...c.assignments].sort((x, y) => (x.sort ?? 0) - (y.sort ?? 0));
+    const list = computeStreaks(c.students, asg, S.streakMarks);
+    total += list.length;
+
+    const sec = el('div', 'sect');
+    sec.appendChild(el('h2', null, c.name));
+    sec.appendChild(el('span', 'cnt', list.length ? `${list.length} 人` : '无'));
+    sec.appendChild(el('span', 'rule'));
+    f.appendChild(sec);
+
+    const last = asg[asg.length - 1];
+    const baseLine = el('p', 'page-sub');
+    baseLine.textContent = last
+      ? `基准：最近一次「${last.title}」${fmtDate(last.assign_date) ? ' · ' + fmtDate(last.assign_date) : ''}`
+      : '这个班还没有登记过作业';
+    f.appendChild(baseLine);
+
+    if (!list.length) {
+      const box = el('div', 'linklist');
+      const head = el('div', 'linkadd');
+      head.appendChild(el('span', 'mk', '●'));
+      head.appendChild(el('span', 'why',
+        last ? '没有连续缺交两次的学生。' : '还没有作业记录，谈不上连续。'));
+      box.appendChild(head);
+      f.appendChild(box);
+      continue;
+    }
+
+    const box = el('div', 'linklist');
+    for (const r of list) {
+      const row = el('div', 'streakrow');
+
+      row.appendChild(el('span', 'stuno', r.student_no));
+      row.appendChild(el('span', 'stuname', r.name));
+
+      const n = el('span', 'streakn', `连续 ${r.streak} 次`);
+      row.appendChild(n);
+
+      const jobs = el('span', 'streakjobs');
+      jobs.textContent = streakJobsText(r.jobs);
+      jobs.title = r.jobs.map((j) => j.title).join('\n');
+      row.appendChild(jobs);
+
+      box.appendChild(row);
+      copyLines.push(`${c.name} ${r.student_no} ${r.name} 连续 ${r.streak} 次（${streakJobsText(r.jobs)}）`);
+    }
+    f.appendChild(box);
+  }
+
+  if (!total) {
+    f.appendChild(notice('两个班都没有连续缺交两次的学生。'));
+  }
+
   return f;
 }
 
@@ -658,6 +1167,11 @@ export function renderHwlog(segments) {
       defaultCohort: cohortName,
     });
   }
+
+  // 连续缺交统计：'#/hwlog/~streak'（跨班，不挂在某个班下面）
+  if (cohortName === STREAK_SEG) return renderStreak();
+  // 不在统计页就把全量缓存丢掉，下次进来重新拉（录入改了标记也不会看到旧数据）
+  S.streakMarks = null;
 
   if (!cohortName) return renderOverview();
   if (!c) {
