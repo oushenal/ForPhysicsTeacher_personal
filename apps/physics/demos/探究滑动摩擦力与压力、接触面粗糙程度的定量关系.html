@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>探究滑动摩擦力与压力、接触面粗糙程度的定量关系</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: #f0f4f8;
+      color: #2c3e50;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    header {
+      text-align: center;
+      padding: 14px 10px 18px;
+    }
+
+    header h1 {
+      font-size: 24px;
+      color: #1a5276;
+    }
+
+    header p {
+      margin-top: 6px;
+      color: #5d6d7e;
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr 0.65fr;
+      gap: 14px;
+      max-width: 1480px;
+      margin: 0 auto;
+      align-items: stretch;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
+      padding: 16px;
+    }
+
+    .card h2 {
+      font-size: 16px;
+      color: #1a5276;
+      border-left: 4px solid #2e86c1;
+      padding-left: 8px;
+      margin-bottom: 12px;
+    }
+
+    #stage {
+      width: 100%;
+      border-radius: 8px;
+      background: #eaf2f8;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      align-items: center;
+    }
+
+    .surf-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .surf-btn {
+      border: 2px solid #aed6f1;
+      background: #fff;
+      color: #1a5276;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all .15s;
+    }
+
+    .surf-btn:hover {
+      background: #eaf2f8;
+    }
+
+    .surf-btn.active {
+      background: #2e86c1;
+      color: #fff;
+      border-color: #2e86c1;
+    }
+
+    .surf-btn .mu-hint {
+      font-size: 12px;
+      opacity: .8;
+    }
+
+    button.action {
+      background: #28b463;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button.action:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+    }
+
+    button.ghost {
+      background: #fff;
+      color: #2e86c1;
+      border: 1.5px solid #2e86c1;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button.ghost:disabled {
+      border-color: #b2babb;
+      color: #b2babb;
+      cursor: not-allowed;
+    }
+
+    .weight-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+    }
+
+    .weight-ctrl button {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: none;
+      background: #2e86c1;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .readout {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .readout .item {
+      background: #eaf2f8;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 14px;
+    }
+
+    .readout .item b {
+      color: #c0392b;
+      font-size: 18px;
+    }
+
+    .record-card {
+      max-height: 760px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .record-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .record-list {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #e5e8e8;
+      border-radius: 0 0 8px 8px;
+      padding: 6px;
+    }
+
+    .record-item {
+      display: grid;
+      grid-template-columns: 32px 1fr 1fr 1fr 1fr;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 4px;
+      border-bottom: 1px solid #eef2f4;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .record-item:last-child {
+      border-bottom: none;
+    }
+
+    .record-item .idx {
+      color: #7f8c8d;
+      font-size: 12px;
+    }
+
+    .record-item .surf-name {
+      font-weight: bold;
+      color: #1a5276;
+    }
+
+    .record-item .val-f {
+      color: #c0392b;
+      font-weight: bold;
+    }
+
+    .record-header {
+      display: grid;
+      grid-template-columns: 32px 1fr 1fr 1fr 1fr;
+      gap: 4px;
+      padding: 6px 4px;
+      font-size: 12px;
+      color: #fff;
+      background: #2e86c1;
+      border-radius: 6px 6px 0 0;
+      text-align: center;
+      margin-bottom: 0;
+    }
+
+    .empty-tip {
+      text-align: center;
+      color: #95a5a6;
+      font-size: 13px;
+      padding: 24px 8px;
+    }
+
+    canvas.chart {
+      width: 100%;
+      background: #fbfcfd;
+      border-radius: 8px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #7f8c8d;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .record-card {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>探究：滑动摩擦力的大小与哪些因素有关？</h1>
+  </header>
+
+  <div class="layout">
+
+    <div class="card">
+      <h2>虚拟实验台</h2>
+      <div class="surf-btns" id="surfBtns"></div>
+      <canvas id="stage" width="640" height="340"></canvas>
+
+      <div class="weight-ctrl">
+        <span>砝码个数（每个附加压力 5 N）：</span>
+        <button id="minusW">−</button>
+        <span id="wCount" style="font-size:18px;font-weight:bold;color:#1a5276;">0</span>
+        <button id="plusW">＋</button>
+        <span class="hint">木块自重产生的压力 5 N（不变）</span>
+      </div>
+
+      <div class="controls">
+        <button class="action" id="pullBtn">▶ 拉动木板，测出摩擦力</button>
+      </div>
+
+      <div class="readout">
+        <div class="item">压力 N = <b id="rN">5.0</b> N</div>
+        <div class="item">滑动摩擦力 f = <b id="rF">—</b> N</div>
+        <div class="item">f / N = <b id="rRatio">—</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>f–N 关系图像</h2>
+      <canvas class="chart" id="chartFN" width="520" height="420"></canvas>
+    </div>
+
+    <div class="card record-card">
+      <h2>实验数据记录</h2>
+      <div class="record-head">
+        <span class="hint" style="margin:0;">每次拉动后自动记录</span>
+        <button class="ghost" id="clearBtn" style="padding:5px 12px;font-size:13px;">清空全部</button>
+      </div>
+
+      <div class="record-header">
+        <span>#</span><span>接触面</span><span>N/N</span><span>f/N</span><span>f/N</span>
+      </div>
+      <div class="record-list" id="recordList"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // ==================== 数据定义 ====================
+    const SURFACES = [
+      {name: "玻璃", mu: 0.10, color: "#aed6f1", line: "#3498db", texture: "smooth"},
+      {name: "木板", mu: 0.20, color: "#d2b48c", line: "#b9770e", texture: "lines"},
+      {name: "棉布", mu: 0.35, color: "#f5b7b1", line: "#e91e63", texture: "grid"},
+      {name: "毛巾", mu: 0.55, color: "#f0b27a", line: "#e67e22", texture: "loops"},
+      {name: "砂纸", mu: 0.80, color: "#9c9c9c", line: "#566573", texture: "dots"}
+    ];
+    const BLOCK_WEIGHT = 5;
+    const WEIGHT_EACH = 5;
+    const MAX_WEIGHTS = 4;
+    const MU_STATIC_RATIO = 1.1;   // 最大静摩擦力 ≈ 1.1 × 滑动摩擦力
+
+    let surfIdx = 1;
+    let weights = 0;
+    let measuredF = null;
+    let records = [];
+    let anim = null;
+    let animRunning = false;
+
+    const stage = document.getElementById('stage');
+    const ctx = stage.getContext('2d');
+
+    // ==================== 接触面按钮 ====================
+    const surfBtns = document.getElementById('surfBtns');
+    SURFACES.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.className = 'surf-btn' + (i === surfIdx ? ' active' : '');
+      b.innerHTML = `${s.name}<br><span class="mu-hint">较${["光滑", "较光滑", "较粗糙", "粗糙", "最粗糙"][i]}</span>`;
+      b.onclick = () => {
+        if (animRunning) return;
+        surfIdx = i; measuredF = null;
+        document.querySelectorAll('.surf-btn').forEach((x, j) => x.classList.toggle('active', j === i));
+        updateReadout(); drawStage(0, null, 0); drawChart();
+      };
+      surfBtns.appendChild(b);
+    });
+
+    // ==================== 砝码控制 ====================
+    document.getElementById('plusW').onclick = () => {
+      if (animRunning) return;
+      if (weights < MAX_WEIGHTS) {weights++; measuredF = null; updateReadout(); drawStage(0, null, 0);}
+    };
+    document.getElementById('minusW').onclick = () => {
+      if (animRunning) return;
+      if (weights > 0) {weights--; measuredF = null; updateReadout(); drawStage(0, null, 0);}
+    };
+
+    function normalForce() {return BLOCK_WEIGHT + weights * WEIGHT_EACH;}
+
+    function updateReadout() {
+      document.getElementById('rN').textContent = normalForce().toFixed(1);
+      document.getElementById('rF').textContent = measuredF === null ? '—' : measuredF.toFixed(2);
+      document.getElementById('rRatio').textContent =
+        measuredF === null ? '—' : (measuredF / normalForce()).toFixed(2);
+      document.getElementById('wCount').textContent = weights;
+    }
+
+    // ==================== 纹理绘制 ====================
+    function drawTexture(x, y, w, h, s, offset) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.fillStyle = s.color; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(0,0,0,.25)';
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.lineWidth = 1;
+      const off = offset || 0;
+      if (s.texture === 'lines') {
+        for (let i = x - 20 + (off % 18); i < x + w; i += 18) {
+          ctx.beginPath(); ctx.moveTo(i, y + 3); ctx.lineTo(i + 8, y + h - 3); ctx.stroke();
+        }
+      } else if (s.texture === 'grid') {
+        for (let i = x - 20 + (off % 14); i < x + w; i += 14) {
+          ctx.beginPath(); ctx.moveTo(i, y); ctx.lineTo(i, y + h); ctx.stroke();
+        }
+        for (let j = y + 6; j < y + h; j += 10) {
+          ctx.beginPath(); ctx.moveTo(x, j); ctx.lineTo(x + w, j); ctx.stroke();
+        }
+      } else if (s.texture === 'loops') {
+        for (let i = x - 20 + (off % 16); i < x + w; i += 16) {
+          ctx.beginPath(); ctx.arc(i, y + h / 2, 5, 0, Math.PI, false); ctx.stroke();
+        }
+      } else if (s.texture === 'dots') {
+        for (let i = x - 20 + (off % 11); i < x + w; i += 11)
+          for (let j = y + 5; j < y + h; j += 9) {
+            ctx.beginPath(); ctx.arc(i, j, 1.6, 0, 7); ctx.fill();
+          }
+      }
+      ctx.restore();
+    }
+
+    // ==================== 弹簧测力计（量程 25 N）====================
+    function drawSpringScale(x0, cy, blockLeft, force) {
+      const bodyW = 120, bodyH = 30;
+      const bodyX = x0 + 6, bodyY = cy - bodyH / 2;
+      const springStart = bodyX + bodyW;
+
+      // 弹簧自然长度 56px；伸长系数 2.0 px/N，最大伸长 45px
+      const naturalLen = 56;
+      const extension = force == null ? 0 : Math.min(force * 2.0, 45);
+      const springLen = naturalLen + extension;
+      const springEnd = Math.max(springStart + springLen, blockLeft - 18);
+
+      // 提环与墙的连接
+      ctx.strokeStyle = '#34495e'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(bodyX + 6, cy, 7, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x0, cy); ctx.lineTo(bodyX + 6, cy); ctx.stroke();
+
+      // 外壳
+      const grad = ctx.createLinearGradient(bodyX, bodyY, bodyX, bodyY + bodyH);
+      grad.addColorStop(0, '#fdfefe'); grad.addColorStop(0.5, '#e8f0f2'); grad.addColorStop(1, '#b3c6cc');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bodyX, bodyY, bodyW, bodyH, 6); else ctx.rect(bodyX, bodyY, bodyW, bodyH);
+      ctx.fill();
+      ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 1.8; ctx.stroke();
+
+      // 刻度窗
+      const winX = bodyX + 14, winW = bodyW - 26, winY = bodyY + 5, winH = bodyH - 10;
+      ctx.fillStyle = '#fff'; ctx.fillRect(winX, winY, winW, winH);
+      ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 1; ctx.strokeRect(winX, winY, winW, winH);
+
+      // 量程 25 N：每 1 N 一小刻度，每 5 N 一大刻度并标数字
+      const maxF = 25;
+      ctx.strokeStyle = '#2c3e50'; ctx.fillStyle = '#2c3e50';
+      ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
+      for (let v = 0; v <= maxF; v += 1) {
+        const px = winX + (v / maxF) * winW;
+        const big = (v % 5 === 0);
+        ctx.lineWidth = big ? 1.4 : 0.8;
+        ctx.beginPath(); ctx.moveTo(px, winY + winH); ctx.lineTo(px, winY + winH - (big ? 7 : 4)); ctx.stroke();
+        if (big) ctx.fillText(String(v), px, winY + winH + 9);
+      }
+      ctx.font = '8px Microsoft YaHei';
+      ctx.fillText('单位:N', bodyX + bodyW - 16, bodyY - 4);
+
+      // 指针
+      if (force != null) {
+        const px = winX + Math.min(force / maxF, 1) * winW;
+        ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(px, winY + 1); ctx.lineTo(px, winY + winH - 1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px, winY + 1); ctx.lineTo(px - 3, winY - 3); ctx.lineTo(px + 3, winY - 3); ctx.closePath();
+        ctx.fillStyle = '#e74c3c'; ctx.fill();
+      }
+
+      // 弹簧
+      const coils = 7 + Math.floor(extension / 8);
+      const len = Math.max(springEnd - springStart, 10);
+      ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(springStart, cy);
+      for (let i = 0; i < coils; i++) {
+        ctx.lineTo(springStart + (i + 0.5) * len / coils, cy + (i % 2 === 0 ? -7 : 7));
+      }
+      ctx.lineTo(springEnd, cy); ctx.stroke();
+
+      // 挂钩
+      ctx.strokeStyle = '#34495e'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(springEnd, cy); ctx.lineTo(blockLeft - 4, cy); ctx.stroke();
+      ctx.beginPath(); ctx.arc(blockLeft - 4, cy + 4, 4, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+    }
+
+    // ==================== 实验台绘制 ====================
+    function drawStage(boardOffset, force, blockShift) {
+      const W = stage.width, H = stage.height;
+      ctx.clearRect(0, 0, W, H);
+      const s = SURFACES[surfIdx];
+
+      const groundY = H - 46;
+      ctx.fillStyle = '#d5dbdb'; ctx.fillRect(0, groundY, W, H - groundY);
+      ctx.strokeStyle = '#aab7b8'; ctx.lineWidth = 1;
+      for (let i = 8; i < W; i += 26) {
+        ctx.beginPath(); ctx.moveTo(i, groundY + 8); ctx.lineTo(i - 10, H - 6); ctx.stroke();
+      }
+
+      // 墙面
+      ctx.fillStyle = '#d6c9b8'; ctx.fillRect(0, 30, 24, groundY - 30);
+      ctx.strokeStyle = '#a0937d'; ctx.lineWidth = 1;
+      for (let j = 40; j < groundY - 8; j += 16) {
+        ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(24, j); ctx.stroke();
+      }
+      for (let j = 40, k = 0; j < groundY - 8; j += 16, k++) {
+        const off = (k % 2) * 8;
+        for (let i = off; i < 24; i += 16) {
+          ctx.beginPath(); ctx.moveTo(i, j); ctx.lineTo(i, Math.min(j + 16, groundY)); ctx.stroke();
+        }
+      }
+      ctx.strokeStyle = '#8d6e3f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(24, 30); ctx.lineTo(24, groundY); ctx.stroke();
+
+      // 木板
+      const boardY = groundY - 30, boardH = 26;
+      const boardStartX = 20;
+      const boardX = boardStartX + boardOffset;
+      const boardW = W - boardStartX + 80;
+      ctx.fillStyle = '#caa472';
+      ctx.fillRect(boardX, boardY, boardW, boardH);
+      ctx.strokeStyle = '#8d6e3f'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(boardX, boardY, boardW, boardH);
+
+      drawTexture(boardX, boardY - 8, boardW, 10, s, boardOffset);
+      ctx.strokeStyle = '#8d6e3f';
+      ctx.strokeRect(boardX, boardY - 8, boardW, 10);
+      ctx.fillStyle = '#2c3e50'; ctx.font = '13px Microsoft YaHei'; ctx.textAlign = 'left';
+      ctx.fillText(`木板（${s.name}）`, Math.max(boardX + 10, 34), boardY + boardH + 18);
+
+      // 拉木板箭头
+      ctx.strokeStyle = '#e74c3c'; ctx.fillStyle = '#e74c3c'; ctx.lineWidth = 4;
+      const ax = Math.min(boardX + boardW + 4, W - 60), ay = boardY + boardH / 2;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + 40, ay); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ax + 40, ay); ctx.lineTo(ax + 28, ay - 7); ctx.lineTo(ax + 28, ay + 7); ctx.closePath(); ctx.fill();
+      ctx.font = '13px Microsoft YaHei'; ctx.textAlign = 'left';
+      ctx.fillText('拉木板', ax - 4, ay + 24);
+
+      // 木块
+      const bw = 90, bh = 50;
+      const bxBase = 330;
+      const bx = bxBase + (blockShift || 0);
+      const by = boardY - 8 - bh;
+
+      for (let i = 0; i < weights; i++) {
+        const wy = by - 14 * (i + 1);
+        ctx.fillStyle = '#5d6d7e';
+        ctx.fillRect(bx + 12, wy, bw - 24, 14);
+        ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 12, wy, bw - 24, 14);
+      }
+      if (weights > 0) {
+        ctx.fillStyle = '#2c3e50'; ctx.font = '12px Microsoft YaHei'; ctx.textAlign = 'left';
+        ctx.fillText(`砝码 ×${weights}`, bx + 16, by - 14 * weights - 6);
+      }
+
+      const woodGrad = ctx.createLinearGradient(bx, by, bx, by + bh);
+      woodGrad.addColorStop(0, '#e5c158'); woodGrad.addColorStop(1, '#c9a227');
+      ctx.fillStyle = woodGrad; ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = '#7d6608'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = '#7d6608'; ctx.font = '13px Microsoft YaHei'; ctx.textAlign = 'left';
+      ctx.fillText('木块', bx + 30, by + bh - 10);
+
+      ctx.strokeStyle = '#34495e'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bx, by + bh / 2, 4, 0, 7); ctx.stroke();
+
+      drawSpringScale(24, by + bh / 2, bx, force);
+
+      if (force != null) {
+        ctx.strokeStyle = '#8e44ad'; ctx.fillStyle = '#8e44ad'; ctx.lineWidth = 3;
+        const fy = by + bh + 8;
+        ctx.beginPath(); ctx.moveTo(bx + 6, fy - 8); ctx.lineTo(bx + 52, fy - 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx + 52, fy - 8); ctx.lineTo(bx + 42, fy - 14); ctx.lineTo(bx + 42, fy - 2); ctx.closePath(); ctx.fill();
+        ctx.font = '12px Microsoft YaHei'; ctx.textAlign = 'left';
+        ctx.fillText(`f = ${force.toFixed(2)} N`, bx + 8, fy + 14);
+      }
+
+      ctx.fillStyle = '#1a5276'; ctx.font = '14px Microsoft YaHei'; ctx.textAlign = 'left';
+      if (force != null) {
+        ctx.fillText(`木板抽出中…… 木块静止，读数稳定为 ${force.toFixed(2)} N`, 40, 22);
+      } else {
+        ctx.fillText('点击“拉动木板”开始测量', 40, 22);
+      }
+    }
+
+    // ==================== 拉动动画 ====================
+    function cancelAnim() {
+      if (anim) {cancelAnimationFrame(anim); anim = null;}
+      animRunning = false;
+    }
+
+    document.getElementById('pullBtn').onclick = () => {
+      cancelAnim();
+      animRunning = true;
+      document.getElementById('pullBtn').disabled = true;
+
+      const s = SURFACES[surfIdx];
+      const N = normalForce();
+      const fSliding = s.mu * N;
+      const fStaticMax = fSliding * MU_STATIC_RATIO;
+      const t0 = performance.now();
+      const dur = 2400;
+      const preSlideRatio = 0.35;
+      const maxBlockShift = Math.min(10 + fStaticMax * 1.2, 26);
+
+      function frame(t) {
+        const p = Math.min((t - t0) / dur, 1);
+        let forceNow, blockShiftNow;
+
+        if (p < preSlideRatio) {
+          const q = p / preSlideRatio;
+          const eased = 1 - Math.pow(1 - q, 2);
+          forceNow = fStaticMax * eased;
+          blockShiftNow = maxBlockShift * eased;
+        } else {
+          const q = (p - preSlideRatio) / (1 - preSlideRatio);
+          const decay = q < 0.25 ? (q / 0.25) : 1;
+          forceNow = fStaticMax * (1 - decay) + fSliding * decay;
+          const wobble = Math.sin(q * Math.PI * 6) * fSliding * 0.025 * (1 - q);
+          forceNow += wobble;
+          blockShiftNow = maxBlockShift;
+        }
+
+        const boardEased = p < 0.15 ? (p / 0.15) * 0.15 : p;
+        const boardOffset = boardEased * 190;
+
+        drawStage(boardOffset, forceNow, blockShiftNow);
+
+        if (p < 1) {
+          anim = requestAnimationFrame(frame);
+        } else {
+          anim = null;
+          animRunning = false;
+          measuredF = +fSliding.toFixed(2);
+          drawStage(190, measuredF, maxBlockShift);
+          updateReadout();
+          addRecord(s.name, s.mu, N, measuredF);
+          document.getElementById('pullBtn').disabled = false;
+        }
+      }
+      anim = requestAnimationFrame(frame);
+    };
+
+    // ==================== 自动记录 ====================
+    function addRecord(surf, mu, N, f) {
+      records.push({surf, mu, N, f});
+      renderRecordList();
+      drawChart();
+    }
+
+    function renderRecordList() {
+      const list = document.getElementById('recordList');
+      list.innerHTML = '';
+
+      if (!records.length) {
+        list.innerHTML = '<div class="empty-tip">尚无数据<br>点击“拉动木板”后自动记录</div>';
+        return;
+      }
+
+      records.forEach((r, i) => {
+        const div = document.createElement('div');
+        div.className = 'record-item';
+        div.innerHTML = `
+      <span class="idx">${i + 1}</span>
+      <span class="surf-name">${r.surf}</span>
+      <span>${r.N.toFixed(1)}</span>
+      <span class="val-f">${r.f.toFixed(2)}</span>
+      <span class="val-f">${(r.f / r.N).toFixed(2)}</span>
+    `;
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById('clearBtn').onclick = () => {
+      if (animRunning) return;
+      records = [];
+      renderRecordList(); drawChart();
+    };
+
+    // ==================== f–N 图像（修复直线裁剪）====================
+    function drawChart() {
+      const canvas = document.getElementById('chartFN');
+      const c = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const padL = 50, padB = 42, padT = 34, padR = 16;
+      const xMax = 30, yMax = 24;
+      const toX = v => padL + (v / xMax) * (W - padL - padR);
+      const toY = v => H - padB - (v / yMax) * (H - padT - padB);
+
+      c.clearRect(0, 0, W, H);
+      c.fillStyle = '#1a5276'; c.font = 'bold 14px Microsoft YaHei'; c.textAlign = 'center';
+      c.fillText('滑动摩擦力 f 与压力 N 的关系', W / 2, 20);
+
+      // 坐标轴
+      c.strokeStyle = '#2c3e50'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(padL, padT); c.lineTo(padL, H - padB); c.lineTo(W - padR, H - padB); c.stroke();
+      c.fillStyle = '#2c3e50'; c.font = '12px Microsoft YaHei';
+      c.textAlign = 'center'; c.fillText('N / N', W - padR - 22, H - padB + 30);
+      c.save(); c.translate(16, padT + 46); c.rotate(-Math.PI / 2); c.fillText('f / N', 0, 0); c.restore();
+
+      // 网格与刻度
+      c.font = '10px sans-serif';
+      for (let v = 0; v <= xMax; v += 5) {
+        const x = toX(v);
+        c.strokeStyle = '#2c3e50'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(x, H - padB); c.lineTo(x, H - padB + 4); c.stroke();
+        c.textAlign = 'center'; c.fillStyle = '#2c3e50';
+        c.fillText(String(v), x, H - padB + 15);
+        c.strokeStyle = '#e5e8e8';
+        c.beginPath(); c.moveTo(x, padT); c.lineTo(x, H - padB); c.stroke();
+      }
+      for (let v = 0; v <= yMax; v += 4) {
+        const y = toY(v);
+        c.strokeStyle = '#2c3e50'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(padL - 4, y); c.lineTo(padL, y); c.stroke();
+        c.textAlign = 'right'; c.fillStyle = '#2c3e50';
+        c.fillText(String(v), padL - 6, y + 3);
+        c.strokeStyle = '#e5e8e8';
+        c.beginPath(); c.moveTo(padL, y); c.lineTo(W - padR, y); c.stroke();
+      }
+
+      // 按接触面分组
+      const legend = [];
+      SURFACES.forEach(s => {
+        const pts = records.filter(r => r.surf === s.name).sort((a, b) => a.N - b.N);
+        if (!pts.length) return;
+
+        let k = null;
+        if (pts.length >= 2) {
+          const num = pts.reduce((sum, p) => sum + p.N * p.f, 0);
+          const den = pts.reduce((sum, p) => sum + p.N * p.N, 0);
+          k = num / den;
+
+          // ★ 修复：直线与图框边界相交，保持真实斜率
+          let endX, endY;
+          if (k * xMax <= yMax) {
+            endX = xMax;
+            endY = k * xMax;
+          } else {
+            endY = yMax;
+            endX = yMax / k;
+          }
+          c.strokeStyle = s.line; c.lineWidth = 2;
+          c.beginPath(); c.moveTo(toX(0), toY(0));
+          c.lineTo(toX(endX), toY(endY)); c.stroke();
+        }
+
+        pts.forEach(p => {
+          c.fillStyle = s.line;
+          c.beginPath(); c.arc(toX(p.N), toY(p.f), 5, 0, 7); c.fill();
+          c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke();
+        });
+
+        legend.push({s, k});
+      });
+
+      // 图例
+      if (legend.length) {
+        let ly = padT + 14;
+        c.font = '12px Microsoft YaHei'; c.textAlign = 'left';
+        legend.forEach(({s, k}) => {
+          c.fillStyle = s.line;
+          c.beginPath(); c.arc(padL + 14, ly - 4, 5, 0, 7); c.fill();
+          c.fillStyle = '#2c3e50';
+          c.fillText(k === null ? `${s.name}：再测 1 组可连线` : `${s.name}：k = ${k.toFixed(2)}`, padL + 26, ly);
+          ly += 18;
+        });
+      } else {
+        c.fillStyle = '#95a5a6'; c.font = '13px Microsoft YaHei'; c.textAlign = 'center';
+        c.fillText('尚无数据', W / 2, H / 2 - 10);
+        c.fillText('每种接触面至少 2 组数据才会画出拟合直线', W / 2, H / 2 + 14);
+      }
+    }
+
+    // ==================== 初始化 ====================
+    updateReadout();
+    drawStage(0, null, 0);
+    renderRecordList();
+    drawChart();
+  </script>
+</body>
+
+</html>
