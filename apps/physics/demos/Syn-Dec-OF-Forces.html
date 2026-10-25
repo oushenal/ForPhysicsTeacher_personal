@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>力的合成与分解 · 演示入口</title>
+  <style>
+    :root {
+      --paper: #fbfaf7;
+      --paper2: #f2efe8;
+      --surface: #ffffff;
+      --ink: #1b1a18;
+      --ink2: #5c5850;
+      --ink3: #9a948a;
+      --line: #e7e2d9;
+      --line2: #d5cfc4;
+      --accent: #a8442d;
+      --sans: "HarmonyOS Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 1px 1px, rgba(27, 26, 24, .045) 1px, transparent 0) 0 0/24px 24px,
+        var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cover {
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 6vw;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ---------- 顶栏 ---------- */
+    .top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 26px;
+      flex: none
+    }
+
+    .top .mk {
+      width: 3px;
+      height: 15px;
+      background: var(--ink);
+      flex: none
+    }
+
+    .top .lb {
+      font-size: 11.5px;
+      letter-spacing: .16em;
+      color: var(--ink3)
+    }
+
+    .top .rt {
+      margin-left: auto;
+      font-size: 11.5px;
+      letter-spacing: .16em;
+      color: var(--ink3)
+    }
+
+    /* ---------- 标题区 ---------- */
+    .intro {
+      padding-top: 8.5vh;
+      position: relative;
+      flex: none
+    }
+
+    .intro h1 {
+      font-size: clamp(38px, 5.1vw, 76px);
+      line-height: 1.06;
+      letter-spacing: .01em;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+      white-space: nowrap;
+    }
+
+    .intro h1 em {
+      font-style: normal;
+      color: var(--accent)
+    }
+
+    .intro .rule {
+      width: 58px;
+      height: 2px;
+      background: var(--accent);
+      margin-top: 26px
+    }
+
+    .intro .lede {
+      margin-top: 20px;
+      max-width: 34em;
+      font-size: 15px;
+      line-height: 1.9;
+      color: var(--ink2);
+      position: relative;
+      z-index: 1;
+      text-wrap: pretty;
+    }
+
+    .intro .meta {
+      margin-top: 14px;
+      font-size: 11.5px;
+      letter-spacing: .08em;
+      color: var(--ink3);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 底纹：一张淡淡的平行四边形，摆在标题右侧 */
+    .motif {
+      position: absolute;
+      right: -2vw;
+      top: 50%;
+      transform: translateY(-50%);
+      width: min(40vw, 660px);
+      color: rgba(27, 26, 24, .09);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .motif .res {
+      color: rgba(168, 68, 45, .20)
+    }
+
+    .motif .pt {
+      fill: currentColor;
+      stroke: none
+    }
+
+    /* ---------- 卡片 ---------- */
+    .spacer {
+      flex: 1 1 auto;
+      min-height: 18px
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding-bottom: 22px;
+      flex: none;
+    }
+
+    .card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 16px;
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      text-decoration: none;
+      color: inherit;
+      transition: .16s ease;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      border-color: var(--ink);
+      background: #fffdfa;
+      box-shadow: 0 12px 30px -16px rgba(60, 48, 30, .55);
+      transform: translateY(-2px);
+      outline: none;
+    }
+
+    .card .num {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .1em;
+      color: var(--ink3);
+      padding-top: 5px;
+      min-width: 2em;
+    }
+
+    .card:hover .num {
+      color: var(--accent)
+    }
+
+    .card h2 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: .01em;
+      margin-bottom: 7px
+    }
+
+    .card h2 small {
+      font-weight: 400;
+      font-size: 12px;
+      color: var(--ink3);
+      margin-left: 9px;
+      letter-spacing: .04em
+    }
+
+    .card p {
+      font-size: 12.5px;
+      line-height: 1.8;
+      color: var(--ink2);
+      max-width: 40em;
+      text-wrap: pretty
+    }
+
+    .card .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 11px
+    }
+
+    .card .tags span {
+      font-size: 10.5px;
+      color: var(--ink3);
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 2px 7px;
+      letter-spacing: .04em;
+    }
+
+    .card .go {
+      font-size: 12px;
+      color: var(--ink3);
+      white-space: nowrap;
+      padding-top: 4px;
+      transition: .16s ease
+    }
+
+    .card:hover .go {
+      color: var(--accent);
+      transform: translateX(2px)
+    }
+
+    /* ---------- 页脚 ---------- */
+    .ft {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 22px;
+      flex: none;
+      font-size: 11px;
+      color: var(--ink3);
+      letter-spacing: .06em;
+    }
+
+    .ft .dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--line2)
+    }
+
+    .ft kbd {
+      font-family: var(--mono);
+      font-size: 10px;
+      border: 1px solid var(--line2);
+      border-radius: 2px;
+      padding: 0 4px;
+      color: var(--ink2);
+    }
+
+    .ft .rt {
+      margin-left: auto
+    }
+
+    /* ---------- 窄屏 ---------- */
+    @media (max-width: 900px) {
+      body {
+        overflow: auto
+      }
+
+      .cover {
+        height: auto;
+        min-height: 100dvh;
+        padding: 0 22px;
+        overflow: visible
+      }
+
+      .top {
+        padding-top: 18px
+      }
+
+      .intro {
+        padding-top: 26px
+      }
+
+      .intro h1 {
+        font-size: 36px;
+        white-space: normal
+      }
+
+      .intro .lede {
+        font-size: 13.5px;
+        margin-top: 16px
+      }
+
+      .intro .rule {
+        margin-top: 20px
+      }
+
+      .motif {
+        display: none
+      }
+
+      .spacer {
+        min-height: 22px;
+        flex: 0
+      }
+
+      .cards {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        padding-bottom: 8px
+      }
+
+      .card {
+        padding: 16px;
+        gap: 12px
+      }
+
+      .card h2 {
+        font-size: 16.5px
+      }
+
+      .card h2 small {
+        display: block;
+        margin: 4px 0 0
+      }
+
+      .card p {
+        font-size: 12px
+      }
+
+      .card .go {
+        display: none
+      }
+
+      .ft {
+        padding: 20px 0 26px;
+        flex-wrap: wrap
+      }
+
+      .ft .rt {
+        margin-left: 0;
+        width: 100%
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="cover">
+    <svg class="motif" viewBox="0 0 420 300" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+        <line x1="34" y1="238" x2="166" y2="86" />
+        <line x1="34" y1="238" x2="244" y2="180" />
+        <g stroke-dasharray="8 8">
+          <line x1="166" y1="86" x2="376" y2="28" />
+          <line x1="244" y1="180" x2="376" y2="28" />
+        </g>
+        <line class="res" x1="34" y1="238" x2="358" y2="35" stroke-width="2" />
+      </g>
+      <circle class="pt" cx="34" cy="238" r="3.6" />
+      <circle class="pt" cx="376" cy="28" r="3.6" style="color:rgba(168,68,45,.35)" />
+    </svg>
+
+    <div class="top">
+      <span class="mk"></span>
+      <span class="lb">高中物理 · 必修一</span>
+      <span class="rt">平行四边形定则</span>
+    </div>
+
+    <section class="intro">
+
+      <h1>力的<em>合成</em>与分解</h1>
+      <div class="rule"></div>
+      <p class="lede">把讲台上的实验，变成一步一步看得见的作图过程。一个页面负责把实验结果画成规范的力的图示，一个页面负责讲清四种分解情形。</p>
+      <p class="meta">点击卡片进入 · 支持投影与手机</p>
+    </section>
+
+    <div class="spacer"></div>
+
+    <nav class="cards">
+      <a class="card" href="./content/力的合成与分解_作图器_V2.html">
+        <div class="num">01</div>
+        <div>
+          <h2>力的图示 · 作图器<small>平行四边形定则</small></h2>
+          <p>上传实验照片，标定四点、填入读数，自动画出 F₁、F₂、F 的图示与合成结果，并用余弦定理核对误差。</p>
+          <div class="tags"><span>六步实验</span><span>逐层动画</span><span>等分刻度</span><span>导出图片</span></div>
+        </div>
+        <div class="go">进入 →</div>
+      </a>
+
+      <a class="card" href="./content/力的合成与分解_分解演示.html">
+        <div class="num">02</div>
+        <div>
+          <h2>力的分解 · 四种情形<small>先定方向，再定大小</small></h2>
+          <p>已知合力求两分力：给两条方向、给一个分力、给夹角、给另一个分力的大小——四种题型的作图过程逐一演示。</p>
+          <div class="tags"><span>四种情形</span><span>参数可调</span><span>实时作图</span></div>
+        </div>
+        <div class="go">进入 →</div>
+      </a>
+    </nav>
+
+    <div class="ft">
+      <span>力的合成与分解 · 演示入口</span>
+      <span class="dot"></span>
+      <span>按 <kbd>1</kbd> <kbd>2</kbd> 快速进入对应页面</span>
+      <span class="rt">浏览器后退可回到本页</span>
+    </div>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var pages = [
+        '力的合成与分解_作图器_V2.html',
+        '力的合成与分解_分解演示.html'
+      ];
+      document.addEventListener('keydown', function (e) {
+        if (e.key === '1' || e.key === '2') {
+          location.href = pages[Number(e.key) - 1];
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>力的合成与分解 · 四种情形演示</title>
+<style>
+  :root{
+    --paper:#fbfaf7;
+    --paper2:#f2efe8;
+    --surface:#ffffff;
+    --ink:#1b1a18;
+    --ink2:#5c5850;
+    --ink3:#9a948a;
+    --line:#e7e2d9;
+    --line2:#d5cfc4;
+    --red:#b03a2e;
+    --blue:#1f5f8b;
+    --green:#2a7d4f;
+    --sans:"HarmonyOS Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    --mono:ui-monospace,"JetBrains Mono","SFMono-Regular",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--paper);
+    color:var(--ink);font-family:var(--sans);font-size:15px;
+    -webkit-font-smoothing:antialiased;overflow:hidden;
+    font-variant-numeric:tabular-nums;
+  }
+  .app{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr)}
+
+  .bar{
+    display:flex;align-items:center;gap:14px;padding:9px 16px;
+    border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.78);backdrop-filter:blur(8px);
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:3px;height:18px;background:var(--ink);flex:none}
+  .brand h1{font-size:15px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+  .modes{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+  .modebtn{
+    font:inherit;font-size:12px;padding:7px 12px;border:1px solid var(--line2);
+    background:var(--surface);color:var(--ink2);border-radius:4px;cursor:pointer;
+    transition:.14s;white-space:nowrap;
+  }
+  .modebtn:hover{border-color:var(--ink3);color:var(--ink)}
+  .modebtn.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+
+  .grid{
+    display:grid;grid-template-columns:minmax(0,1fr) 348px;
+    min-height:0;
+  }
+  .stage{
+    position:relative;min-height:0;padding:12px;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(27,26,24,.05) 1px, transparent 0) 0 0/24px 24px,
+      var(--paper2);
+    display:flex;flex-direction:column;
+  }
+  .stage svg{width:100%;height:100%;display:block;touch-action:none;
+    filter:drop-shadow(0 6px 18px rgba(60,48,30,.10))}
+
+  .panel{
+    border-left:1px solid var(--line);overflow-y:auto;padding:11px;
+    display:flex;flex-direction:column;gap:9px;
+    background:rgba(255,255,255,.55);
+  }
+  .panel::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-thumb{background:var(--line2);border-radius:9px;
+    border:3px solid transparent;background-clip:padding-box}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:11px 12px 12px}
+  .card h2{
+    font-size:12px;letter-spacing:.05em;font-weight:700;display:flex;align-items:center;
+    gap:8px;margin-bottom:9px;color:var(--ink);
+  }
+  .card h2 i{
+    font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--paper);
+    background:var(--ink);width:15px;height:15px;display:grid;place-items:center;
+    border-radius:2px;flex:none;
+  }
+  .desc{font-size:12.5px;line-height:1.75;color:var(--ink2)}
+  .desc b{color:var(--ink);font-weight:600}
+  .desc .k{color:var(--red);font-weight:700}
+  .desc .b{color:var(--blue);font-weight:700}
+  .desc .g{color:var(--green);font-weight:700}
+
+  .kv{display:flex;align-items:baseline;gap:8px;padding:5px 0;border-bottom:1px dotted var(--line)}
+  .kv:last-child{border-bottom:0}
+  .kv span{font-size:12px;color:var(--ink2);white-space:nowrap}
+  .kv b{margin-left:auto;font-family:var(--mono);font-size:13px;font-weight:700;white-space:nowrap}
+  .kv .hint{font-size:10.5px;color:var(--ink3);margin-left:4px}
+
+  .warn{
+    font-size:12px;line-height:1.6;color:var(--red);background:rgba(176,58,46,.07);
+    border:1px solid rgba(176,58,46,.2);border-radius:4px;padding:8px 10px;margin-top:6px;
+  }
+  .okmsg{
+    font-size:12px;line-height:1.6;color:var(--green);background:rgba(42,125,79,.07);
+    border:1px solid rgba(42,125,79,.2);border-radius:4px;padding:8px 10px;margin-top:6px;
+  }
+
+  .ctrl{display:flex;flex-direction:column;gap:7px;padding:3px 0}
+  .ctrl .lab{display:flex;align-items:baseline;gap:6px;font-size:11.5px;color:var(--ink2)}
+  .ctrl .lab b{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink)}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:18px;
+    background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line2);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--ink);margin-top:-5px;border:2px solid #fff;box-shadow:0 0 0 1px var(--ink);
+  }
+  input[type=range]::-moz-range-track{height:3px;background:var(--line2);border-radius:2px}
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;background:var(--ink);
+    border:2px solid #fff;box-shadow:0 0 0 1px var(--ink);
+  }
+  .btn{
+    font:inherit;font-size:11.5px;padding:7px 12px;border:1px solid var(--line2);
+    background:var(--surface);color:var(--ink);border-radius:4px;cursor:pointer;
+    transition:.12s;white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--ink2);background:var(--paper)}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+  .btn.primary:hover{background:#333}
+  .btnrow{display:flex;gap:6px;margin-top:3px}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;padding:7px 10px;font-size:11px;color:var(--ink2)}
+  .lg{display:flex;align-items:center;gap:6px}
+  .lg i{display:block;width:22px;height:3px;border-radius:2px;flex:none}
+
+  .tips{font-size:11px;line-height:1.7;color:var(--ink3);margin-top:8px;
+    padding-top:8px;border-top:1px dashed var(--line)}
+  .tips kbd{
+    font-family:var(--mono);font-size:10px;border:1px solid var(--line2);
+    border-radius:2px;padding:0 4px;color:var(--ink2);background:var(--paper);
+  }
+
+  @media (max-width: 920px){
+    .grid{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+    .panel{border-left:0;border-top:1px solid var(--line);max-height:46vh}
+    .brand h1{font-size:13.5px}
+    .modebtn{font-size:11px;padding:6px 9px}
+    .bar{padding:7px 10px;gap:8px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <span class="mk"></span>
+      <h1>力的合成与分解 · 四种情形</h1>
+    </div>
+    <div class="modes">
+      <button class="modebtn on" data-mode="1">① 已知 F 与两分力方向</button>
+      <button class="modebtn" data-mode="2">② 已知 F 与 F₁</button>
+      <button class="modebtn" data-mode="3">③ 已知 F、F₁方向、夹角 θ</button>
+      <button class="modebtn" data-mode="4">④ 已知 F、F₁方向、|F₂|</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="stage">
+      <svg id="svg" viewBox="0 0 1000 720" preserveAspectRatio="xMidYMid meet"></svg>
+    </section>
+
+    <aside class="panel">
+      <section class="card">
+        <h2><i>1</i>情形说明</h2>
+        <p class="desc" id="descText"></p>
+      </section>
+
+      <section class="card">
+        <h2><i>2</i>调节</h2>
+        <div class="ctrl" data-mode="1">
+          <div class="tips" style="margin:0;padding:0;border:0">
+            直接拖动图上的 <b style="color:var(--red)">F 端点</b> 改变合力；
+            拖动两个<b style="color:var(--ink2)">空心圆手柄</b>转动两条分力方向线。
+          </div>
+        </div>
+        <div class="ctrl" data-mode="2">
+          <div class="tips" style="margin:0;padding:0;border:0">
+            拖动 <b style="color:var(--red)">F 端点</b> 与 <b style="color:var(--blue)">F₁ 端点</b>，
+            F₂ 由平行四边形自动确定。
+          </div>
+        </div>
+        <div class="ctrl" data-mode="3">
+          <div class="lab">F 与 F₁ 方向的夹角 θ <b id="thetaVal">40°</b></div>
+          <input type="range" id="thetaSlider" min="10" max="85" step="1" value="40">
+          <div class="btnrow">
+            <button class="btn" id="btnMin">跳到 F₂ 最小位置</button>
+            <button class="btn" id="btnSlide">演示滑动</button>
+          </div>
+          <div class="tips">拖动图上的 <b style="color:var(--blue)">F₁ 端点</b> 沿方向线滑动，观察 F₂ 如何变化。</div>
+        </div>
+        <div class="ctrl" data-mode="4">
+          <div class="lab">F 与 F₁ 方向的夹角 <b id="a4Val">15°</b></div>
+          <input type="range" id="a4Slider" min="-85" max="85" step="1" value="15">
+          <div class="lab" style="margin-top:10px">已知分力的大小 |F₂| <b id="r2Val">3.8 N</b></div>
+          <input type="range" id="r2Slider" min="40" max="290" step="1" value="170">
+          <div class="btnrow">
+            <button class="btn" id="btnTangent">跳到相切位置 |F₂| = |F|·sinθ</button>
+          </div>
+          <div class="tips">
+            拖动 <b style="color:var(--ink2)">方向线手柄</b> 或滑上面的滑块转动 F₁ 的方向，
+            观察绿色圆与方向线的交点个数（解的个数）。
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><i>3</i>读数</h2>
+        <div id="readout"></div>
+      </section>
+
+      <section class="card">
+        <h2><i>4</i>图例</h2>
+        <div class="legend" style="padding:0">
+          <span class="lg"><i style="background:#b03a2e"></i>合力 F</span>
+          <span class="lg"><i style="background:#1f5f8b"></i>分力 F₁</span>
+          <span class="lg"><i style="background:#2a7d4f"></i>分力 F₂</span>
+          <span class="lg"><i style="background:#d5cfc4"></i>辅助线</span>
+        </div>
+        <div class="tips">手柄为空心圆，按住拖动即可。<kbd>拖动</kbd> 都是实时的。</div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ==================== 常量 ==================== */
+const W = 1000, H = 720;
+const O = {x: 400, y: 400};
+const K = 45;
+const RAD = 235;
+const PAPER = '#fbfaf7';
+const INK = '#1b1a18', INK2 = '#5c5850', INK3 = '#9a948a';
+const RED = '#b03a2e', BLUE = '#1f5f8b', GREEN = '#2a7d4f';
+const FONT = '"HarmonyOS Sans SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif';
+
+/* 相切判定的像素容差：滑块步长是 1px，取 1.5 覆盖最近的两三个滑块位置 */
+const TANGENT_EPS = 1.5;
+
+/* ==================== 状态 ==================== */
+const S = {
+  mode: 1,
+  F: {x: 250, y: -160},
+  a1: -32 * Math.PI / 180,
+  a2:  52 * Math.PI / 180,
+  F1v: {x: 175, y: 95},
+  theta: 40 * Math.PI / 180,
+  t1: 200,
+  a4Rel: 15 * Math.PI / 180,
+  r2: 170
+};
+
+function getA4(){
+  return Math.atan2(S.F.y, S.F.x) + S.a4Rel;
+}
+
+/* ==================== 向量工具 ==================== */
+const vadd = (a,b) => ({x:a.x+b.x, y:a.y+b.y});
+const vsub = (a,b) => ({x:a.x-b.x, y:a.y-b.y});
+const vmul = (v,s) => ({x:v.x*s, y:v.y*s});
+const vlen = v => Math.hypot(v.x, v.y);
+const vunit = v => { const l = vlen(v) || 1; return {x:v.x/l, y:v.y/l}; };
+const cross = (a,b) => a.x*b.y - a.y*b.x;
+const dot = (a,b) => a.x*b.x + a.y*b.y;
+const dirOf = a => ({x: Math.cos(a), y: Math.sin(a)});
+const clamp = (x,a,b) => x < a ? a : (x > b ? b : x);
+const fmt1 = x => (Math.round(x*10)/10).toFixed(1);
+
+/* F 端点到方向线的垂直距离（像素）= |F|·sinθ */
+function distToLine(F, angle){
+  const u = dirOf(angle);
+  return Math.abs(cross(u, F));
+}
+
+/* ==================== DOM ==================== */
+const svg = document.getElementById('svg');
+const descText = document.getElementById('descText');
+const readout = document.getElementById('readout');
+
+/* ==================== 绘图基元 ==================== */
+function rayEnd(angle){
+  const dx = Math.cos(angle), dy = Math.sin(angle);
+  let t = 4000;
+  if(dx >  1e-6) t = Math.min(t, (W - 12 - O.x) / dx);
+  if(dx < -1e-6) t = Math.min(t, (12 - O.x) / dx);
+  if(dy >  1e-6) t = Math.min(t, (H - 12 - O.y) / dy);
+  if(dy < -1e-6) t = Math.min(t, (12 - O.y) / dy);
+  return {x: O.x + dx*t, y: O.y + dy*t};
+}
+
+function rayLine(angle, color){
+  const p = rayEnd(angle);
+  const q = rayEnd(angle + Math.PI);
+  return `<line x1="${q.x.toFixed(1)}" y1="${q.y.toFixed(1)}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"
+    stroke="${color}" stroke-width="1.5" stroke-dasharray="8 8" opacity="0.32"/>`;
+}
+
+function arrowSvg(a, b, color, w, op){
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const L = Math.hypot(dx, dy);
+  if(L < 3) return '';
+  const ux = dx / L, uy = dy / L;
+  const hl = Math.min(L * 0.85, Math.max(13, w * 4.3));
+  const hw = Math.max(10, w * 2.7);
+  const ex = b.x - ux * hl, ey = b.y - uy * hl;
+  const nx = -uy, ny = ux;
+  const o = (op == null ? 1 : op);
+  return `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
+      stroke="${color}" stroke-width="${w}" stroke-linecap="round" opacity="${o}"/>` +
+    `<polygon points="${(ex+nx*hw/2).toFixed(1)},${(ey+ny*hw/2).toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)} ${(ex-nx*hw/2).toFixed(1)},${(ey-ny*hw/2).toFixed(1)}"
+      fill="${color}" opacity="${o}"/>`;
+}
+
+function dashLine(a, b, color, op){
+  return `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}"
+    stroke="${color}" stroke-width="1.8" stroke-dasharray="8 7" opacity="${op == null ? 0.5 : op}"/>`;
+}
+
+function text(x, y, s, color, size, bold, op){
+  size = size || 24;
+  return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${size}" font-family='${FONT}'
+    fill="${color}" text-anchor="middle" dominant-baseline="middle"
+    font-weight="${bold ? 700 : 600}" opacity="${op == null ? 1 : op}"
+    stroke="${PAPER}" stroke-width="${(size*0.3).toFixed(1)}" paint-order="stroke"
+    stroke-linejoin="round">${s}</text>`;
+}
+
+function tipLabel(p, v, s, color, size){
+  const u = vunit(v);
+  const x = clamp(p.x + u.x * 38, 36, W - 36);
+  const y = clamp(p.y + u.y * 38, 34, H - 34);
+  return text(x, y, s, color, size || 25, true);
+}
+
+function handleSvg(x, y, color){
+  return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="#ffffff" stroke="${color}"
+      stroke-width="2.6" opacity="0.96"/>` +
+    `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.2" fill="${color}"/>`;
+}
+
+function badge(msg, color){
+  const w = msg.length * 18 + 34;
+  return `<g><rect x="26" y="26" width="${w}" height="42" rx="5" fill="${color}" opacity="0.94"/>
+    <text x="${26 + w/2}" y="47.5" font-size="18" font-family='${FONT}' fill="#ffffff"
+      text-anchor="middle" dominant-baseline="middle" font-weight="700">${msg}</text></g>`;
+}
+
+function gridBg(){
+  return `<defs><pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1.2" fill="#1b1a18" opacity="0.075"/>
+    </pattern></defs><rect x="0" y="0" width="${W}" height="${H}" fill="url(#dots)"/>`;
+}
+
+/* ==================== 求解 ==================== */
+function solve1(){
+  const u1 = dirOf(S.a1), u2 = dirOf(S.a2);
+  const d = cross(u1, u2);
+  if(Math.abs(d) < 1e-4){
+    return {ok:false, msg:'两条方向线平行，无法按此方向分解'};
+  }
+  const t1 = cross(u2, S.F) / cross(u2, u1);
+  const t2 = cross(u1, S.F) / cross(u1, u2);
+  if(t1 < 0 || t2 < 0){
+    return {ok:false, msg:'按此方向无解（分力需要反向）'};
+  }
+  return {ok:true, t1, t2, u1, u2};
+}
+
+/* 情形④：用 |F₂| 与 h=|F|·sinθ 的直接比较判断解的个数 */
+function solve4(){
+  const a4 = getA4();
+  const u1 = dirOf(a4);
+  const d = S.F, r = S.r2;
+  const h = distToLine(S.F, a4);        // 像素
+  const b = dot(d, u1);                 // 切点/交点参数的基准
+
+  if(r < h - TANGENT_EPS){
+    return {ok:false, ts:[], h, msg:'|F₂| < |F|·sinθ，圆与方向线不相交 —— 无解'};
+  }
+
+  let ts = [];
+  let tangent = false;
+
+  if(r > h + TANGENT_EPS){
+    /* 两个交点：参数 b ± √(r²−h²) */
+    const disc = r*r - h*h;
+    const sq = Math.sqrt(Math.max(0, disc));
+    ts = [b - sq, b + sq];
+  } else {
+    /* 相切（含像素容差内的近似相切）：唯一交点就是垂足 */
+    ts = [b];
+    tangent = true;
+  }
+
+  ts = ts.filter(t => t > 1e-6).sort((a,b) => a - b);
+  if(ts.length === 0){
+    return {ok:false, ts:[], h, msg:'交点落在 F₁ 的反方向 —— 无解'};
+  }
+  return {ok:true, ts, u1, h, tangent};
+}
+
+/* ==================== 渲染 ==================== */
+function render(){
+  const g = [gridBg()];
+  if(S.mode === 1) render1(g);
+  else if(S.mode === 2) render2(g);
+  else if(S.mode === 3) render3(g);
+  else render4(g);
+  svg.innerHTML = g.join('');
+}
+
+function render1(g){
+  g.push(rayLine(S.a1, BLUE));
+  g.push(rayLine(S.a2, GREEN));
+  const sol = solve1();
+  const E = vadd(O, S.F);
+  let P1 = null, P2 = null;
+  if(sol.ok){
+    P1 = vadd(O, vmul(sol.u1, sol.t1));
+    P2 = vadd(O, vmul(sol.u2, sol.t2));
+    g.push(dashLine(P1, E, BLUE, 0.45));
+    g.push(dashLine(P2, E, GREEN, 0.45));
+  }
+  g.push(arrowSvg(O, E, RED, 4.6));
+  if(sol.ok){
+    g.push(arrowSvg(O, P1, BLUE, 4));
+    g.push(arrowSvg(O, P2, GREEN, 4));
+  }
+  g.push(tipLabel(E, S.F, 'F', RED));
+  if(sol.ok){
+    g.push(tipLabel(P1, vmul(sol.u1, sol.t1), 'F₁', BLUE, 23));
+    g.push(tipLabel(P2, vmul(sol.u2, sol.t2), 'F₂', GREEN, 23));
+  }
+  const p1e = rayEnd(S.a1), p2e = rayEnd(S.a2);
+  g.push(text(p1e.x - 40*Math.cos(S.a1), p1e.y - 40*Math.sin(S.a1), 'F₁方向', BLUE, 17, false, 0.75));
+  g.push(text(p2e.x - 40*Math.cos(S.a2), p2e.y - 40*Math.sin(S.a2), 'F₂方向', GREEN, 17, false, 0.75));
+  g.push(handleSvg(E.x, E.y, RED));
+  g.push(handleSvg(O.x + Math.cos(S.a1)*RAD, O.y + Math.sin(S.a1)*RAD, BLUE));
+  g.push(handleSvg(O.x + Math.cos(S.a2)*RAD, O.y + Math.sin(S.a2)*RAD, GREEN));
+  if(!sol.ok) g.push(badge(sol.msg, RED));
+}
+
+function render2(g){
+  const E = vadd(O, S.F);
+  const P1 = vadd(O, S.F1v);
+  const F2 = vsub(S.F, S.F1v);
+  const P2 = vadd(O, F2);
+  g.push(dashLine(P1, E, BLUE, 0.45));
+  g.push(dashLine(P2, E, GREEN, 0.45));
+  g.push(arrowSvg(O, E, RED, 4.6));
+  g.push(arrowSvg(O, P1, BLUE, 4));
+  if(vlen(F2) > 6) g.push(arrowSvg(O, P2, GREEN, 4));
+  g.push(tipLabel(E, S.F, 'F', RED));
+  g.push(tipLabel(P1, S.F1v, 'F₁', BLUE, 23));
+  if(vlen(F2) > 26) g.push(tipLabel(P2, F2, 'F₂', GREEN, 23));
+  g.push(handleSvg(E.x, E.y, RED));
+  g.push(handleSvg(P1.x, P1.y, BLUE));
+}
+
+function render3(g){
+  const angF = Math.atan2(S.F.y, S.F.x);
+  const ang1 = angF - S.theta;
+  const u1 = dirOf(ang1);
+  const E = vadd(O, S.F);
+  g.push(rayLine(ang1, BLUE));
+  const proj = dot(S.F, u1);
+  if(proj > 0){
+    const foot = vadd(O, vmul(u1, proj));
+    g.push(`<line x1="${E.x.toFixed(1)}" y1="${E.y.toFixed(1)}" x2="${foot.x.toFixed(1)}" y2="${foot.y.toFixed(1)}"
+      stroke="${GREEN}" stroke-width="1.8" stroke-dasharray="7 6" opacity="0.5"/>`);
+    g.push(`<circle cx="${foot.x.toFixed(1)}" cy="${foot.y.toFixed(1)}" r="7" fill="none"
+      stroke="${GREEN}" stroke-width="2" opacity="0.8"/>`);
+    g.push(text(foot.x + 36, foot.y + 32, 'F₂最小', GREEN, 16, true, 0.85));
+  }
+  const P1 = vadd(O, vmul(u1, S.t1));
+  const F2 = vsub(S.F, vmul(u1, S.t1));
+  g.push(arrowSvg(O, E, RED, 4.6));
+  g.push(arrowSvg(O, P1, BLUE, 4));
+  if(vlen(F2) > 6) g.push(arrowSvg(P1, E, GREEN, 4));
+  g.push(tipLabel(E, S.F, 'F', RED));
+  g.push(tipLabel(P1, vmul(u1, S.t1), 'F₁', BLUE, 23));
+  if(vlen(F2) > 30){
+    const mid = {x:(P1.x+E.x)/2, y:(P1.y+E.y)/2};
+    const n = {x:-u1.y, y:u1.x};
+    const sg = (dot(vsub(E,P1), n) > 0) ? 1 : -1;
+    g.push(text(mid.x + n.x*32*sg, mid.y + n.y*32*sg, 'F₂', GREEN, 22, true));
+  }
+  g.push(handleSvg(E.x, E.y, RED));
+  g.push(handleSvg(P1.x, P1.y, BLUE));
+}
+
+function render4(g){
+  const a4 = getA4();
+  const u1 = dirOf(a4);
+  const E = vadd(O, S.F);
+  const sol = solve4();
+
+  g.push(rayLine(a4, BLUE));
+
+  /* 垂足 / 切点 */
+  const proj = dot(S.F, u1);
+  if(proj > 0){
+    const foot = vadd(O, vmul(u1, proj));
+    const h = vlen(vsub(S.F, vmul(u1, proj)));
+    g.push(`<line x1="${E.x.toFixed(1)}" y1="${E.y.toFixed(1)}" x2="${foot.x.toFixed(1)}" y2="${foot.y.toFixed(1)}"
+      stroke="${INK2}" stroke-width="1.7" stroke-dasharray="6 6" opacity="0.5"/>`);
+    if(sol.ok && sol.tangent){
+      /* 相切：切点高亮成绿色圆环 */
+      g.push(`<circle cx="${foot.x.toFixed(1)}" cy="${foot.y.toFixed(1)}" r="11" fill="none"
+        stroke="${GREEN}" stroke-width="2.8" opacity="0.95"/>`);
+      g.push(`<circle cx="${foot.x.toFixed(1)}" cy="${foot.y.toFixed(1)}" r="4" fill="${GREEN}"/>`);
+      g.push(text(foot.x + 46, foot.y + 34, '切点', GREEN, 16, true, 0.9));
+    } else {
+      g.push(`<circle cx="${foot.x.toFixed(1)}" cy="${foot.y.toFixed(1)}" r="4" fill="${INK2}" opacity="0.7"/>`);
+    }
+    if(h > 22){
+      const mid = {x:(E.x+foot.x)/2, y:(E.y+foot.y)/2};
+      const n = {x:-u1.y, y:u1.x};
+      const sg = (dot(vsub(E,foot), n) > 0) ? 1 : -1;
+      g.push(text(mid.x + n.x*26*sg, mid.y + n.y*26*sg, 'F·sinθ', INK2, 15, true, 0.85));
+    }
+  }
+
+  /* 以 F 端点为圆心、|F₂| 为半径的圆 */
+  g.push(`<circle cx="${E.x.toFixed(1)}" cy="${E.y.toFixed(1)}" r="${S.r2.toFixed(1)}"
+    fill="none" stroke="${GREEN}" stroke-width="1.8" stroke-dasharray="7 7" opacity="0.42"/>`);
+
+  if(sol.ok){
+    sol.ts.forEach((t, i) => {
+      const P1 = vadd(O, vmul(u1, t));
+      const op = sol.ts.length > 1 ? (i === 0 ? 1 : 0.55) : 1;
+      g.push(arrowSvg(O, P1, BLUE, 4, op));
+      g.push(arrowSvg(P1, E, GREEN, 4, op));
+      if(sol.ts.length > 1){
+        g.push(text(P1.x + 28, P1.y - 24, i === 0 ? '解①' : '解②', BLUE, 15, true, op));
+      }
+    });
+  }
+
+  g.push(arrowSvg(O, E, RED, 4.6));
+  g.push(tipLabel(E, S.F, 'F', RED));
+
+  g.push(handleSvg(E.x, E.y, RED));
+  g.push(handleSvg(O.x + Math.cos(a4)*RAD, O.y + Math.sin(a4)*RAD, BLUE));
+
+  if(!sol.ok) g.push(badge(sol.msg, RED));
+}
+
+/* ==================== 读数面板 ==================== */
+function row(k, v, color, extra){
+  return `<div class="kv"><span>${k}</span><b style="${color ? 'color:' + color : ''}">${v}</b>${extra ? `<i class="hint">${extra}</i>` : ''}</div>`;
+}
+
+function updateReadout(){
+  const FN = vlen(S.F) / K;
+  let h = '';
+
+  if(S.mode === 1){
+    const sol = solve1();
+    h += row('合力 |F|', fmt1(FN) + ' N', RED);
+    if(sol.ok){
+      const ang = Math.acos(clamp(dot(sol.u1, sol.u2), -1, 1)) * 180 / Math.PI;
+      h += row('分力 |F₁|', fmt1(sol.t1 / K) + ' N', BLUE);
+      h += row('分力 |F₂|', fmt1(sol.t2 / K) + ' N', GREEN);
+      h += row('两分力夹角 α', fmt1(ang) + '°');
+      h += `<div class="okmsg">按平行四边形定则，F₁ 与 F₂ 沿两条方向线唯一确定。</div>`;
+    } else {
+      h += `<div class="warn">${sol.msg}</div>`;
+    }
+
+  } else if(S.mode === 2){
+    const F1px = vlen(S.F1v);
+    const F2px = vlen(vsub(S.F, S.F1v));
+    h += row('合力 |F|', fmt1(FN) + ' N', RED);
+    h += row('已知分力 |F₁|', fmt1(F1px / K) + ' N', BLUE);
+    h += row('另一分力 |F₂|', fmt1(F2px / K) + ' N', GREEN);
+    const cosv = clamp(dot(vunit(S.F1v), vunit(S.F)), -1, 1);
+    h += row('F₁ 与 F 的夹角', fmt1(Math.acos(cosv) * 180 / Math.PI) + '°');
+    h += `<div class="okmsg">F₂ = F − F₁，由三角形法则直接得到。</div>`;
+
+  } else if(S.mode === 3){
+    const angF = Math.atan2(S.F.y, S.F.x);
+    const u1 = dirOf(angF - S.theta);
+    const F2px = vlen(vsub(S.F, vmul(u1, S.t1)));
+    const hpx = distToLine(S.F, angF - S.theta);
+    h += row('合力 |F|', fmt1(FN) + ' N', RED);
+    h += row('夹角 θ', fmt1(S.theta * 180 / Math.PI) + '°');
+    h += row('|F|·sinθ', fmt1(hpx / K) + ' N', INK2, 'F 到方向线距离');
+    h += row('当前 |F₁|', fmt1(S.t1 / K) + ' N', BLUE);
+    h += row('当前 |F₂|', fmt1(F2px / K) + ' N', GREEN);
+    h += row('|F₂| 最小值', fmt1(hpx / K) + ' N', GREEN, '= |F|·sinθ');
+    const diff = Math.abs(F2px - hpx);
+    if(diff < 3){
+      h += `<div class="okmsg">此时 F₂ ⊥ F₁，F₂ 取到最小值 |F|·sinθ。</div>`;
+    } else {
+      h += `<div class="warn">继续沿方向线移动 F₁ 端点，F₂ 还能更短。</div>`;
+    }
+
+  } else {
+    const a4 = getA4();
+    const hpx = distToLine(S.F, a4);
+    const thDeg = Math.abs(S.a4Rel) * 180 / Math.PI;
+    const sol = solve4();
+    h += row('合力 |F|', fmt1(FN) + ' N', RED);
+    h += row('夹角 θ', fmt1(thDeg) + '°');
+    h += row('|F|·sinθ', fmt1(hpx / K) + ' N', INK2, 'F 到方向线距离');
+    h += row('已知 |F₂|', fmt1(S.r2 / K) + ' N', GREEN);
+
+    if(!sol.ok){
+      h += `<div class="warn">${sol.msg}</div>`;
+    } else {
+      h += row('解的个数', sol.ts.length + ' 组');
+      sol.ts.forEach((t, i) => {
+        const P1 = vadd(O, vmul(sol.u1, t));
+        const F2v = vsub(vadd(O, S.F), P1);
+        const angF2 = Math.atan2(F2v.y, F2v.x) * 180 / Math.PI;
+        h += row(`第 ${i+1} 解 |F₁|`, fmt1(t / K) + ' N', BLUE);
+        h += row(`第 ${i+1} 解 F₂ 方向`, fmt1(angF2) + '°', GREEN, '与 x 轴正向');
+      });
+
+      if(sol.tangent){
+        h += `<div class="okmsg">圆与方向线<b>相切</b>：|F₂| ≈ |F|·sinθ，只有唯一解（切点即垂足）。</div>`;
+      } else if(sol.ts.length === 1){
+        h += `<div class="okmsg">只有一个交点在 F₁ 正方向，唯一解。</div>`;
+      } else {
+        h += `<div class="okmsg">圆与方向线有两个交点，本题有两组解。</div>`;
+      }
+    }
+  }
+
+  readout.innerHTML = h;
+}
+
+/* ==================== 说明文字 ==================== */
+const DESC = {
+  1:`已知合力 <span class="k">F</span> 的大小和方向，以及两个分力 <span class="b">F₁</span>、<span class="g">F₂</span> 的方向，
+     求两个分力的大小。<br><br>
+     作法：从 O 点沿两个已知方向作射线，过 <span class="k">F</span> 的端点分别作两条方向线的平行线，
+     交出的平行四边形的两条邻边就是 <span class="b">F₁</span> 与 <span class="g">F₂</span>。`,
+  2:`已知合力 <span class="k">F</span> 和其中一个分力 <span class="b">F₁</span>（大小、方向），求另一个分力 <span class="g">F₂</span>。<br><br>
+     作法：<span class="g">F₂</span> = <span class="k">F</span> − <span class="b">F₁</span>。
+     连接 <span class="b">F₁</span> 的端点与 <span class="k">F</span> 的端点，这条有向线段就是 <span class="g">F₂</span>（三角形法则）。`,
+  3:`已知合力 <span class="k">F</span> 的大小和方向、分力 <span class="b">F₁</span> 的方向（与 F 成夹角 θ），
+     求另一个分力 <span class="g">F₂</span> 的最小值。<br><br>
+     <span class="b">F₁</span> 的方向线固定，其端点可沿线滑动。当 <span class="g">F₂</span> ⊥ <span class="b">F₁</span> 时，
+     <span class="g">F₂</span> 最短，最小值 = <span class="k">|F|</span>·sinθ，
+     也就是 F 端点到方向线的垂直距离。`,
+  4:`已知合力 <span class="k">F</span>、分力 <span class="b">F₁</span> 的方向和另一个分力 <span class="g">F₂</span> 的大小，
+     求 <span class="b">F₁</span> 的大小和 <span class="g">F₂</span> 的方向。<br><br>
+     作法：以 <span class="k">F</span> 的端点为圆心、<span class="g">|F₂|</span> 为半径作圆，
+     圆与 <span class="b">F₁</span> 方向线的交点即为 <span class="b">F₁</span> 的端点。<br><br>
+     判据（记 <b>h = |F|·sinθ</b>，即 F 端点到方向线的距离）：
+     <span class="g">|F₂|</span> &lt; h <b>无解</b>；
+     <span class="g">|F₂|</span> = h <b>相切，唯一解</b>（F₂ ⊥ F₁）；
+     <span class="g">|F₂|</span> &gt; h <b>通常两解</b>（若只有一个交点落在 F₁ 正方向，则只剩一解）。`
+};
+
+function updateDesc(){ descText.innerHTML = DESC[S.mode]; }
+
+/* ==================== 交互 ==================== */
+let dragging = null;
+
+function svgPt(e){
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const m = svg.getScreenCTM();
+  if(!m) return {x:0, y:0};
+  const p = pt.matrixTransform(m.inverse());
+  return {x: p.x, y: p.y};
+}
+
+function handlePositions(){
+  const hs = [{id:'F', x: O.x + S.F.x, y: O.y + S.F.y}];
+  if(S.mode === 1){
+    hs.push({id:'a1', x: O.x + Math.cos(S.a1)*RAD, y: O.y + Math.sin(S.a1)*RAD});
+    hs.push({id:'a2', x: O.x + Math.cos(S.a2)*RAD, y: O.y + Math.sin(S.a2)*RAD});
+  } else if(S.mode === 2){
+    hs.push({id:'F1', x: O.x + S.F1v.x, y: O.y + S.F1v.y});
+  } else if(S.mode === 3){
+    const ang1 = Math.atan2(S.F.y, S.F.x) - S.theta;
+    hs.push({id:'P1', x: O.x + Math.cos(ang1)*S.t1, y: O.y + Math.sin(ang1)*S.t1});
+  } else {
+    const a4 = getA4();
+    hs.push({id:'a4', x: O.x + Math.cos(a4)*RAD, y: O.y + Math.sin(a4)*RAD});
+  }
+  return hs;
+}
+
+const SNAP = K * 0.1;
+
+function setVec(v, minL, maxL){
+  let L = Math.hypot(v.x, v.y);
+  const u = {x: v.x/(L||1), y: v.y/(L||1)};
+  L = clamp(L, minL, maxL);
+  L = Math.round(L / SNAP) * SNAP;
+  L = clamp(L, minL, maxL);
+  return {x: u.x*L, y: u.y*L};
+}
+
+svg.addEventListener('pointerdown', e => {
+  const p = svgPt(e);
+  const hs = handlePositions();
+  let best = null, bd = 32;
+  for(const h of hs){
+    const d = Math.hypot(p.x - h.x, p.y - h.y);
+    if(d < bd){ bd = d; best = h; }
+  }
+  if(!best) return;
+  dragging = best.id;
+  try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+  svg.style.cursor = 'grabbing';
+  e.preventDefault();
+});
+
+svg.addEventListener('pointermove', e => {
+  const p = svgPt(e);
+  if(!dragging){
+    const hs = handlePositions();
+    const near = hs.some(h => Math.hypot(p.x - h.x, p.y - h.y) < 32);
+    svg.style.cursor = near ? 'grab' : 'default';
+    return;
+  }
+  const v = {x: p.x - O.x, y: p.y - O.y};
+  if(dragging === 'F'){
+    S.F = setVec(v, K*1.2, K*6.6);
+  } else if(dragging === 'F1'){
+    S.F1v = setVec(v, K*0.8, K*7.0);
+  } else if(dragging === 'a1'){
+    S.a1 = Math.atan2(v.y, v.x);
+  } else if(dragging === 'a2'){
+    S.a2 = Math.atan2(v.y, v.x);
+  } else if(dragging === 'a4'){
+    const aF = Math.atan2(S.F.y, S.F.x);
+    let rel = Math.atan2(v.y, v.x) - aF;
+    while(rel > Math.PI) rel -= 2*Math.PI;
+    while(rel < -Math.PI) rel += 2*Math.PI;
+    rel = clamp(rel, -85 * Math.PI/180, 85 * Math.PI/180);
+    S.a4Rel = rel;
+    const deg = Math.round(rel * 180 / Math.PI);
+    document.getElementById('a4Slider').value = deg;
+    document.getElementById('a4Val').textContent = Math.abs(deg) + '°';
+  } else if(dragging === 'P1'){
+    const ang1 = Math.atan2(S.F.y, S.F.x) - S.theta;
+    const u1 = dirOf(ang1);
+    let t = dot(v, u1);
+    t = clamp(t, 0, 620);
+    t = Math.round(t / SNAP) * SNAP;
+    S.t1 = clamp(t, 0, 620);
+  }
+  refresh();
+});
+
+function endDrag(e){
+  if(!dragging) return;
+  dragging = null;
+  try{ svg.releasePointerCapture(e.pointerId); }catch(err){}
+  svg.style.cursor = 'default';
+}
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+
+/* ==================== 控件 ==================== */
+document.querySelectorAll('.modebtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.modebtn').forEach(b => b.classList.toggle('on', b === btn));
+    S.mode = Number(btn.dataset.mode);
+    document.querySelectorAll('.ctrl').forEach(c => {
+      c.style.display = (Number(c.dataset.mode) === S.mode) ? '' : 'none';
+    });
+    updateDesc();
+    refresh();
+  });
+});
+
+const thetaSlider = document.getElementById('thetaSlider');
+const thetaVal = document.getElementById('thetaVal');
+thetaSlider.addEventListener('input', () => {
+  S.theta = Number(thetaSlider.value) * Math.PI / 180;
+  thetaVal.textContent = thetaSlider.value + '°';
+  refresh();
+});
+
+const a4Slider = document.getElementById('a4Slider');
+const a4Val = document.getElementById('a4Val');
+a4Slider.addEventListener('input', () => {
+  const deg = Number(a4Slider.value);
+  S.a4Rel = deg * Math.PI / 180;
+  a4Val.textContent = Math.abs(deg) + '°';
+  refresh();
+});
+
+const r2Slider = document.getElementById('r2Slider');
+const r2Val = document.getElementById('r2Val');
+r2Slider.addEventListener('input', () => {
+  S.r2 = Number(r2Slider.value);
+  r2Val.textContent = fmt1(S.r2 / K) + ' N';
+  refresh();
+});
+
+/* 一键跳到相切位置：|F₂| = |F|·sinθ */
+document.getElementById('btnTangent').addEventListener('click', () => {
+  const a4 = getA4();
+  const h = distToLine(S.F, a4);
+  S.r2 = Math.round(h);
+  r2Slider.value = S.r2;
+  r2Val.textContent = fmt1(S.r2 / K) + ' N';
+  refresh();
+});
+
+document.getElementById('btnMin').addEventListener('click', () => {
+  const proj = dot(S.F, dirOf(Math.atan2(S.F.y, S.F.x) - S.theta));
+  S.t1 = Math.max(0, proj);
+  refresh();
+});
+
+let slideTimer = null;
+document.getElementById('btnSlide').addEventListener('click', function(){
+  if(slideTimer){ clearInterval(slideTimer); slideTimer = null; this.textContent = '演示滑动'; return; }
+  this.textContent = '停止演示';
+  let dir = 1;
+  slideTimer = setInterval(() => {
+    S.t1 += dir * 6;
+    if(S.t1 > 480){ S.t1 = 480; dir = -1; }
+    if(S.t1 < 0){ S.t1 = 0; dir = 1; }
+    refresh();
+  }, 16);
+});
+
+/* ==================== 初始化 ==================== */
+function refresh(){ render(); updateReadout(); }
+
+function init(){
+  thetaVal.textContent = thetaSlider.value + '°';
+  a4Val.textContent = Math.abs(Number(a4Slider.value)) + '°';
+  r2Val.textContent = fmt1(S.r2 / K) + ' N';
+  document.querySelectorAll('.ctrl').forEach(c => {
+    c.style.display = (Number(c.dataset.mode) === S.mode) ? '' : 'none';
+  });
+  updateDesc();
+  refresh();
+}
+
+init();
+
+})();
+</script>
+</body>
+</html>
