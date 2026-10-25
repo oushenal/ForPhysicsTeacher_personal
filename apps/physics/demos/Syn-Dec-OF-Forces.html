@@ -160,8 +160,8 @@
 
     .cards {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
       padding-bottom: 22px;
       flex: none;
     }
@@ -210,10 +210,11 @@
     }
 
     .card h2 small {
+      display: block;
       font-weight: 400;
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--ink3);
-      margin-left: 9px;
+      margin-top: 5px;
       letter-spacing: .04em
     }
 
@@ -287,6 +288,26 @@
     }
 
     /* ---------- 窄屏 ---------- */
+    @media (max-width: 1180px) {
+      body {
+        overflow: auto
+      }
+
+      .cover {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible
+      }
+
+      .cards {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .motif {
+        display: none
+      }
+    }
+
     @media (max-width: 900px) {
       body {
         overflow: auto
@@ -397,7 +418,7 @@
 
       <h1>力的<em>合成</em>与分解</h1>
       <div class="rule"></div>
-      <p class="lede">把讲台上的实验，变成一步一步看得见的作图过程。一个页面负责把实验结果画成规范的力的图示，一个页面负责讲清四种分解情形。</p>
+      <p class="lede">把讲台上的实验，变成一步一步看得见的作图过程。三个页面：从照片画出规范的力的图示，拖滑块看合力怎么变，再把合力拆成两个分力。</p>
       <p class="meta">点击卡片进入 · 支持投影与手机</p>
     </section>
 
@@ -414,8 +435,18 @@
         <div class="go">进入 →</div>
       </a>
 
-      <a class="card" href="./content/力的合成与分解_分解演示.html">
+      <a class="card" href="./content/力的合成.html">
         <div class="num">02</div>
+        <div>
+          <h2>力的合成 · 矢量实验室<small>拖动滑块，看合力怎么变</small></h2>
+          <p>保持合力不变、或保持分力不变，拖动滑块改变大小与夹角，实时观察合力的变化；平行四边形、三角形、圆、角度四种视图对照。</p>
+          <div class="tags"><span>两种场景</span><span>四种视图</span><span>实时联动</span></div>
+        </div>
+        <div class="go">进入 →</div>
+      </a>
+
+      <a class="card" href="./content/力的合成与分解_分解演示.html">
+        <div class="num">03</div>
         <div>
           <h2>力的分解 · 四种情形<small>先定方向，再定大小</small></h2>
           <p>已知合力求两分力：给两条方向、给一个分力、给夹角、给另一个分力的大小——四种题型的作图过程逐一演示。</p>
@@ -428,7 +459,7 @@
     <div class="ft">
       <span>力的合成与分解 · 演示入口</span>
       <span class="dot"></span>
-      <span>按 <kbd>1</kbd> <kbd>2</kbd> 快速进入对应页面</span>
+      <span>按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> 快速进入对应页面</span>
       <span class="rt">浏览器后退可回到本页</span>
     </div>
 
@@ -438,11 +469,12 @@
     (function () {
       'use strict';
       var pages = [
-        '力的合成与分解_作图器_V2.html',
-        '力的合成与分解_分解演示.html'
+        './content/力的合成与分解_作图器_V2.html',
+        './content/力的合成.html',
+        './content/力的合成与分解_分解演示.html'
       ];
       document.addEventListener('keydown', function (e) {
-        if (e.key === '1' || e.key === '2') {
+        if (e.key >= '1' && e.key <= '3') {
           location.href = pages[Number(e.key) - 1];
         }
       });

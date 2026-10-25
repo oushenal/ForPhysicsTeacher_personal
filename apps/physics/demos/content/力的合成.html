@@ -1,0 +1,2616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>力的合成 · 矢量实验室</title>
+<style>
+  :root{
+    --ink:#102a46;
+    --ink-2:#3d5570;
+    --muted:#6e8098;
+    --line:#e2eaf3;
+    --card:rgba(255,255,255,.94);
+    --f1:#2563eb;
+    --f1-deep:#1d4ed8;
+    --f1-soft:#f1f6ff;
+    --f2:#e98218;
+    --f2-deep:#c66b08;
+    --f2-soft:#fff8ef;
+    --res:#df2b52;
+    --res-deep:#c51f45;
+    --res-soft:#fff4f7;
+    --orbit:#7c3aed;
+    --angle:#0d9b8d;
+    --angle-deep:#087c71;
+    --angle-soft:#eefbf8;
+    --shadow:0 20px 50px rgba(30,55,90,.085), 0 2px 8px rgba(30,55,90,.035);
+    --font:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{
+    margin:0;
+    overflow:hidden;
+    color:var(--ink);
+    font-family:var(--font);
+    background:
+      radial-gradient(1100px 680px at 4% -8%, rgba(37,99,235,.14), transparent 54%),
+      radial-gradient(900px 600px at 98% -4%, rgba(233,130,24,.12), transparent 50%),
+      linear-gradient(180deg,#f6f9fc 0%,#edf2f8 100%);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  button{font-family:inherit}
+  .page{
+    width:100%;
+    max-width:1640px;
+    height:100dvh;
+    min-height:620px;
+    margin:0 auto;
+    padding:22px 26px 20px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  /* ---------- Header ---------- */
+  .topbar{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:22px;
+    padding:0 4px;
+  }
+  .brand{display:flex;align-items:center;gap:15px;min-width:0}
+  .brand-mark{
+    width:51px;height:51px;border-radius:16px;
+    display:grid;place-items:center;
+    background:linear-gradient(145deg,#142e52 0%,#1d4476 100%);
+    box-shadow:0 10px 24px rgba(19,45,80,.22), inset 0 1px 0 rgba(255,255,255,.2);
+    flex:0 0 auto;
+  }
+  .brand-mark svg{width:35px;height:35px;display:block}
+  .kicker{
+    margin:0 0 3px;
+    color:#7f90a6;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:.17em;
+    text-transform:uppercase;
+  }
+  .title-line{display:flex;align-items:baseline;gap:13px;min-width:0}
+  h1{
+    margin:0;
+    font-size:29px;
+    line-height:1.1;
+    letter-spacing:.04em;
+    font-weight:800;
+    color:#0d2745;
+    white-space:nowrap;
+  }
+  .title-desc{
+    padding-left:13px;
+    border-left:1px solid #cdd8e5;
+    color:#6c7f96;
+    font-size:12px;
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
+  .topbar-right{display:flex;align-items:center;gap:11px;flex:0 0 auto}
+  .equation-chip{
+    height:38px;
+    padding:0 15px;
+    display:flex;align-items:center;gap:7px;
+    border:1px solid rgba(255,255,255,.82);
+    border-radius:12px;
+    background:rgba(255,255,255,.64);
+    box-shadow:0 5px 16px rgba(30,55,90,.045);
+    backdrop-filter:blur(12px);
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:16px;
+    color:#6a7c92;
+    letter-spacing:.02em;
+  }
+  .equation-chip .eq-f1{color:var(--f1);font-weight:700}
+  .equation-chip .eq-f2{color:var(--f2);font-weight:700}
+  .equation-chip .eq-r{color:var(--res);font-weight:700}
+  .ghost-btn{
+    appearance:none;
+    height:38px;
+    padding:0 13px;
+    display:flex;align-items:center;gap:6px;
+    border:1px solid #dce5ef;
+    border-radius:11px;
+    background:rgba(255,255,255,.72);
+    color:#4d6179;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .18s,border-color .18s,transform .18s,color .18s;
+  }
+  .ghost-btn:hover{background:#fff;border-color:#cbd7e5;color:var(--ink);transform:translateY(-1px)}
+  .ghost-btn:active{transform:translateY(0)}
+  .ghost-btn svg{width:14px;height:14px}
+
+  /* ---------- Workspace ---------- */
+  .workspace{
+    flex:1 1 auto;
+    min-height:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(340px,372px);
+    gap:16px;
+  }
+  .stage-card{
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    padding:12px;
+    border:1px solid rgba(255,255,255,.92);
+    border-radius:24px;
+    background:var(--card);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .stage-toolbar{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:2px 4px 12px;
+  }
+  .tabs{
+    display:flex;
+    gap:3px;
+    padding:4px;
+    border:1px solid #e2ebf4;
+    border-radius:13px;
+    background:#edf3fa;
+  }
+  .tab{
+    appearance:none;
+    border:0;
+    padding:8px 13px;
+    border-radius:9px;
+    display:flex;align-items:center;gap:7px;
+    background:transparent;
+    color:#687c94;
+    font-size:12.5px;
+    font-weight:650;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:background .18s,color .18s,box-shadow .18s;
+  }
+  .tab svg{width:16px;height:16px;opacity:.72;transition:opacity .18s,color .18s}
+  .tab:hover{background:rgba(255,255,255,.58);color:var(--ink)}
+  .tab[aria-selected="true"]{
+    background:#fff;
+    color:#17324f;
+    box-shadow:0 2px 8px rgba(30,55,90,.11),0 0 0 1px rgba(30,55,90,.025);
+  }
+  .tab[data-view="triangle"][aria-selected="true"] svg{color:var(--f2)}
+  .tab[data-view="circle"][aria-selected="true"] svg{color:var(--orbit)}
+  .tab[data-view="angle"][aria-selected="true"] svg{color:var(--angle)}
+  .tab:focus-visible,.ghost-btn:focus-visible,.play-btn:focus-visible,.morph-btn:focus-visible,.scenario-play-btn:focus-visible,.scenario-tab:focus-visible{
+    outline:2px solid var(--f1);
+    outline-offset:2px;
+  }
+  .stage-tools{display:flex;align-items:center;gap:10px;min-width:0}
+  .play-btn{
+    appearance:none;
+    height:34px;
+    padding:0 12px;
+    display:none;
+    align-items:center;gap:7px;
+    border:1px solid #d9e2ee;
+    border-radius:10px;
+    background:#fff;
+    color:#36516f;
+    font-size:11.5px;
+    font-weight:650;
+    cursor:pointer;
+    box-shadow:0 3px 10px rgba(30,55,90,.05);
+    transition:background .18s,border-color .18s;
+  }
+  .play-btn:hover{background:#f7faff;border-color:#c9d7e7}
+  .play-btn svg{width:13px;height:13px}
+  .play-btn.is-visible{display:flex}
+  .morph-btn{
+    appearance:none;
+    height:34px;
+    padding:0 12px;
+    display:none;
+    align-items:center;gap:7px;
+    border:1px solid rgba(13,155,141,.26);
+    border-radius:10px;
+    background:linear-gradient(135deg,#ffffff,#f0fdfa);
+    color:var(--angle-deep);
+    font-size:11px;
+    font-weight:750;
+    white-space:nowrap;
+    cursor:pointer;
+    box-shadow:0 3px 10px rgba(13,155,141,.07);
+    transition:background .18s,border-color .18s,transform .18s,opacity .18s;
+  }
+  .morph-btn:hover{background:#fff;border-color:rgba(13,155,141,.45);transform:translateY(-1px)}
+  .morph-btn:active{transform:translateY(0)}
+  .morph-btn:disabled{cursor:default;opacity:.72;transform:none}
+  .morph-btn svg{width:14px;height:14px;color:var(--angle)}
+  .morph-btn.is-visible{display:flex}
+  .live-pill{
+    display:flex;align-items:center;gap:6px;
+    color:#7d8da1;
+    font-size:9.5px;
+    font-weight:800;
+    letter-spacing:.14em;
+  }
+  .live-dot{
+    width:6px;height:6px;border-radius:50%;
+    background:#2ec27e;
+    box-shadow:0 0 0 3px rgba(46,194,126,.13);
+    animation:livePulse 2.4s ease-in-out infinite;
+  }
+  @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+  /* ---------- Canvas board ---------- */
+  .board{
+    position:relative;
+    flex:1 1 auto;
+    min-height:0;
+    border:1px solid #e6edf6;
+    border-radius:18px;
+    overflow:hidden;
+    isolation:isolate;
+    background:
+      radial-gradient(900px 520px at 62% 26%, rgba(255,255,255,.95), transparent 68%),
+      linear-gradient(180deg,#fcfdff 0%,#f5f9fe 100%);
+  }
+  .board::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    pointer-events:none;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.72), inset 0 14px 34px rgba(37,99,235,.018);
+    z-index:3;
+  }
+  #scene{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action:none;
+    z-index:1;
+  }
+  #scene text{
+    font-family:var(--font);
+    user-select:none;
+  }
+  .grid-line{stroke:#e9eff7;stroke-width:.8}
+  .grid-line.major{stroke:#dce6f2;stroke-width:1}
+  .grid-axis{stroke:#cbd8e7;stroke-width:1.15}
+  .arrow-line{stroke-linecap:round;stroke-linejoin:round}
+  .label-halo{
+    paint-order:stroke;
+    stroke:rgba(250,253,255,.96);
+    stroke-width:4.5px;
+    stroke-linejoin:round;
+  }
+  .v-label-name{font-size:14.5px;font-weight:800;letter-spacing:.01em}
+  .v-label-value{font-size:12.2px;font-weight:650}
+  .mini-label{
+    paint-order:stroke;stroke:rgba(250,253,255,.95);stroke-width:4px;stroke-linejoin:round;
+    font-size:10.5px;font-weight:700;
+  }
+  .theta-label{
+    paint-order:stroke;stroke:rgba(250,253,255,.95);stroke-width:4px;stroke-linejoin:round;
+    font-size:10.5px;font-weight:650;fill:#7b8ca2;letter-spacing:.02em;
+  }
+  .orbit{
+    stroke-dasharray:8 8;
+    animation:orbitDash 22s linear infinite;
+  }
+  .board.is-paused .orbit{animation-play-state:paused}
+  @keyframes orbitDash{to{stroke-dashoffset:-160}}
+  .orbit-knob{
+    cursor:grab;
+    filter:drop-shadow(0 2px 5px rgba(124,58,237,.22));
+  }
+  .orbit-knob:active{cursor:grabbing}
+  .orbit-hit{cursor:grab}
+  .orbit-hit:active{cursor:grabbing}
+
+  .board-overlay{
+    position:absolute;
+    z-index:2;
+    pointer-events:none;
+  }
+  .mode-chip{
+    top:13px;left:14px;
+    display:flex;align-items:center;gap:7px;
+    padding:7px 10px;
+    border:1px solid rgba(222,232,243,.95);
+    border-radius:9px;
+    background:rgba(255,255,255,.82);
+    box-shadow:0 4px 14px rgba(30,55,90,.04);
+    backdrop-filter:blur(8px);
+    color:#526a85;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:.02em;
+  }
+  .mode-chip .chip-dot{
+    width:6px;height:6px;border-radius:2px;
+    background:var(--f1);
+    transform:rotate(45deg);
+  }
+  .mode-chip.circle .chip-dot{background:var(--orbit);border-radius:50%;transform:none}
+  .mode-chip.triangle .chip-dot{background:var(--f2)}
+  .mode-chip.angle .chip-dot{background:var(--angle);border-radius:50%;transform:none}
+  .board.is-circle .mode-chip{display:none}
+
+  .angle-status{
+    top:13px;right:14px;
+    display:none;
+    min-width:208px;
+    padding:10px 12px;
+    border:1px solid rgba(13,155,141,.24);
+    border-radius:13px;
+    background:rgba(252,255,254,.96);
+    box-shadow:0 10px 25px rgba(11,105,95,.1),inset 0 1px 0 #fff;
+    backdrop-filter:blur(10px);
+  }
+  .angle-status.is-visible{display:block;animation:cardIn .24s ease both}
+  .angle-status-kicker{display:block;color:#5b8c87;font-size:8.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+  .angle-status strong{display:block;margin-top:2px;color:#173e3a;font-size:15px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .angle-status-sub{display:block;margin-top:2px;color:#668985;font-size:9.5px;font-weight:600;line-height:1.4}
+  .angle-status-theta{
+    display:inline-flex;align-items:center;gap:3px;
+    margin-top:6px;padding:3px 7px;
+    border-radius:6px;background:var(--angle-soft);
+    color:#5b8c87;font-size:9px;font-weight:700;
+  }
+  .angle-status-theta b{color:var(--angle-deep);font-size:10.5px;font-variant-numeric:tabular-nums}
+
+  .range-card{
+    top:13px;left:14px;right:auto;
+    display:none;
+    width:238px;
+    padding:12px 14px 11px;
+    border:1px solid rgba(124,58,237,.24);
+    border-radius:14px;
+    background:rgba(255,253,255,.97);
+    box-shadow:0 12px 28px rgba(85,48,150,.12), inset 0 1px 0 #fff;
+    backdrop-filter:blur(10px);
+  }
+  .range-card.is-visible{display:block;animation:cardIn .24s ease both}
+  @keyframes cardIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .range-head{display:flex;align-items:center;gap:6px;color:#6234bf;font-size:10px;font-weight:800;letter-spacing:.09em}
+  .range-head .orbit-dot{width:7px;height:7px;border-radius:50%;border:2px solid var(--orbit);box-shadow:0 0 0 2px rgba(124,58,237,.1)}
+  .range-formula{
+    margin-top:7px;
+    color:#2e1b58;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:13px;
+    letter-spacing:.01em;
+  }
+  .range-numbers{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:7px;
+    color:#6e5a92;
+    font-size:10px;
+    font-weight:650;
+  }
+  .range-numbers b{color:#452477;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+  .range-track{
+    position:relative;
+    height:5px;
+    margin:7px 1px 8px;
+    border-radius:99px;
+    background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(223,43,82,.3));
+  }
+  .range-track::before,.range-track::after{
+    content:"";position:absolute;top:50%;width:5px;height:5px;border-radius:50%;
+    background:#7651b9;transform:translateY(-50%);
+  }
+  .range-track::before{left:-2px}
+  .range-track::after{right:-2px}
+  .range-marker{
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:12px;height:12px;
+    border:2.5px solid var(--res);
+    border-radius:50%;
+    background:#fff;
+    transform:translate(-50%,-50%);
+    box-shadow:0 1px 4px rgba(197,31,69,.22);
+    transition:left .06s linear;
+  }
+  .range-current{margin:0;color:#745e95;font-size:10px;font-weight:600}
+  .range-current b{color:var(--res);font-size:11.5px;font-variant-numeric:tabular-nums}
+
+  .scale-wrap{
+    left:18px;bottom:15px;
+    display:flex;flex-direction:column;gap:5px;
+    color:#7d8da2;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:.03em;
+    user-select:none;
+  }
+  .scale-bar{
+    width:90px;height:8px;
+    border-left:1px solid #91a3b9;
+    border-right:1px solid #91a3b9;
+    border-bottom:2px solid #91a3b9;
+    border-radius:0 0 2px 2px;
+  }
+  .board-tip{
+    display:none;
+    right:16px;bottom:14px;
+    padding:5px 9px;
+    border-radius:7px;
+    background:rgba(255,255,255,.76);
+    color:#7d8ea3;
+    font-size:9.5px;
+    font-weight:600;
+    letter-spacing:.02em;
+    box-shadow:0 2px 8px rgba(30,55,90,.035);
+  }
+  .board-tip.is-visible{display:block}
+
+  /* ---------- Stage footer ---------- */
+  .stage-footer{
+    flex:0 0 auto;
+    min-height:38px;
+    display:flex;
+    align-items:center;
+    gap:17px;
+    padding:11px 6px 1px;
+  }
+  .legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:6px;color:#586d86;font-size:11px;font-weight:650;white-space:nowrap}
+  .legend-swatch{width:18px;height:3px;border-radius:99px;background:var(--swatch);position:relative}
+  .legend-swatch::after{
+    content:"";position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+    border-left:4px solid var(--swatch);border-top:2.5px solid transparent;border-bottom:2.5px solid transparent;
+  }
+  .legend-swatch.dashed{height:0;border-top:2px dashed var(--swatch,var(--orbit));border-radius:0;background:transparent}
+  .legend-swatch.dashed::after{display:none}
+  .legend-circle-item,.legend-angle-item{display:none}
+  .legend-circle-item.is-visible,.legend-angle-item.is-visible{display:flex}
+  .mode-explain{
+    margin:0 0 0 auto;
+    padding-left:15px;
+    border-left:1px solid #e3eaf3;
+    max-width:63%;
+    color:#6f8197;
+    font-size:11px;
+    line-height:1.55;
+  }
+  .mode-explain strong{color:#405a78;font-weight:750}
+
+  /* ---------- Side panel ---------- */
+  .side-panel{
+    min-height:0;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:11px;
+    padding:1px 4px 5px 0;
+    scrollbar-width:thin;
+    scrollbar-color:#cbd8e7 transparent;
+  }
+  .side-panel::-webkit-scrollbar{width:7px}
+  .side-panel::-webkit-scrollbar-thumb{background:#cbd8e7;border-radius:99px;border:2px solid transparent;background-clip:content-box}
+  .panel-header{
+    flex:0 0 auto;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:10px;
+    padding:0 5px 1px;
+  }
+  .panel-kicker{margin:0 0 2px;color:#8a99ac;font-size:9.5px;font-weight:800;letter-spacing:.15em}
+  .panel-title{margin:0;font-size:17px;line-height:1.2;letter-spacing:.02em;font-weight:800;color:#18324f}
+  .sync-badge{display:flex;align-items:center;gap:5px;color:#7d8da1;font-size:9.5px;font-weight:700;letter-spacing:.03em;padding-bottom:2px}
+  .sync-badge .sync-dot{width:5px;height:5px;border-radius:50%;background:#2ec27e}
+
+  .force-card{
+    position:relative;
+    flex:0 0 auto;
+    padding:13px 15px 11px;
+    border:1px solid rgba(255,255,255,.92);
+    border-radius:18px;
+    background:var(--card);
+    box-shadow:0 10px 28px rgba(30,55,90,.055);
+    overflow:hidden;
+    transition:background .22s,opacity .22s;
+  }
+  .force-card::before{
+    content:"";
+    position:absolute;
+    left:0;top:18px;bottom:18px;
+    width:3px;
+    border-radius:0 3px 3px 0;
+    background:var(--accent);
+    opacity:.82;
+  }
+  .force-card.f1{--accent:var(--f1);--accent-soft:var(--f1-soft)}
+  .force-card.f2{--accent:var(--f2);--accent-soft:var(--f2-soft)}
+  .force-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .force-ident{display:flex;align-items:center;gap:8px;min-width:0}
+  .force-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);flex:0 0 auto}
+  .force-name{font-size:16px;font-weight:800;color:#18324f;letter-spacing:.01em;white-space:nowrap}
+  .force-tag{
+    margin-left:1px;
+    padding:3px 6px;
+    border-radius:5px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.04em;
+  }
+  .force-readout{font-size:14px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .force-readout small{font-size:9.5px;font-weight:700;color:#8493a6;margin-left:2px}
+  .control{margin-top:8px}
+  .control-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px;color:#7a8ca1;font-size:10.5px;font-weight:600}
+  .control-meta output{color:#4e6480;font-size:10.5px;font-weight:750;font-variant-numeric:tabular-nums}
+  .control-meta .control-note{color:#a0adbd;font-size:9.5px;font-weight:600;letter-spacing:.01em}
+  .lock-note{
+    display:none;
+    align-items:center;gap:5px;
+    margin-top:7px;
+    color:#8b99ab;
+    font-size:9.5px;
+    font-weight:600;
+  }
+  .lock-note svg{width:11px;height:11px}
+  .force-card.is-locked{background:rgba(250,252,255,.82)}
+  .force-card.is-locked .lock-note{display:flex}
+  .force-card.is-locked input[type=range]:disabled{pointer-events:none;filter:saturate(.12);opacity:.48}
+  .force-card.is-locked .force-readout{opacity:.68}
+  .force-card.direction-live .control + .control .control-meta > span:first-child::after{
+    content:"· 可调";
+    margin-left:4px;
+    color:var(--f2);
+    font-size:9px;
+    font-weight:800;
+    letter-spacing:.03em;
+  }
+  .force-card.direction-live .control + .control input[type=range]{
+    filter:none;
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  input[type=range]{
+    --pct:50%;
+    -webkit-appearance:none;
+    appearance:none;
+    display:block;
+    width:100%;
+    height:17px;
+    margin:0;
+    background:transparent;
+    cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:5px;
+    border-radius:99px;
+    background:linear-gradient(90deg,var(--accent) 0 var(--pct),#e8eef6 var(--pct) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:17px;height:17px;
+    margin-top:-6px;
+    border-radius:50%;
+    border:3px solid var(--accent);
+    background:#fff;
+    box-shadow:0 2px 6px rgba(20,42,72,.2);
+    transition:transform .15s,box-shadow .15s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.12)}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.04)}
+  input[type=range]:focus-visible{outline:none}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 18%,transparent),0 2px 6px rgba(20,42,72,.2)}
+  input[type=range]::-moz-range-track{height:5px;border-radius:99px;background:#e8eef6}
+  input[type=range]::-moz-range-progress{height:5px;border-radius:99px;background:var(--accent)}
+  input[type=range]::-moz-range-thumb{
+    width:12px;height:12px;
+    border-radius:50%;
+    border:3px solid var(--accent);
+    background:#fff;
+    box-shadow:0 2px 6px rgba(20,42,72,.2);
+  }
+  input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 5px rgba(37,99,235,.14)}
+
+  .result-card{
+    --accent:var(--res);
+    flex:0 0 auto;
+    padding:13px 15px 11px;
+    border:1px solid rgba(223,43,82,.15);
+    border-radius:18px;
+    background:
+      radial-gradient(280px 150px at 100% 0%, rgba(223,43,82,.07), transparent 70%),
+      linear-gradient(145deg,#fffafb 0%,#ffffff 58%,#fff7f9 100%);
+    box-shadow:0 12px 30px rgba(80,26,43,.06);
+  }
+  .result-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .result-eyebrow{margin:0 0 2px;color:#b07a88;font-size:8.5px;font-weight:800;letter-spacing:.14em}
+  .result-title{margin:0;font-size:16px;font-weight:800;color:#41222e;letter-spacing:.02em}
+  .result-title .res-symbol{color:var(--res);font-family:Georgia,serif;font-style:italic;font-weight:700;margin-left:1px}
+  .result-big{display:flex;align-items:baseline;gap:3px;color:var(--res);line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .result-big b{font-size:29px;font-weight:800;letter-spacing:-.035em}
+  .result-big span{font-size:10.5px;font-weight:800;color:#b77685}
+  .result-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 9px}
+  .stat{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:5px 8px;
+    border:1px solid #f2e3e8;
+    border-radius:8px;
+    background:rgba(255,255,255,.72);
+    color:#8a7880;
+    font-size:10px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .stat b{color:#543742;font-size:10.5px;font-weight:800;font-variant-numeric:tabular-nums}
+  .result-control .control-meta span:first-child{color:#805d69}
+  .result-control .control-meta .control-note{color:#b78895}
+  .result-note{
+    margin:6px 0 0;
+    color:#9a8289;
+    font-size:9.5px;
+    line-height:1.45;
+    font-weight:600;
+    transition:opacity .2s;
+  }
+  .result-card.is-locked input[type=range]{pointer-events:none;filter:saturate(.18);opacity:.48}
+  .result-card.is-locked .result-note{color:#a38c93}
+
+  /* ---------- Equal-component angle lab ---------- */
+  .scenario-card{
+    --accent:var(--angle);
+    flex:0 0 auto;
+    padding:14px 15px 13px;
+    border:1px solid rgba(13,155,141,.2);
+    border-radius:18px;
+    background:
+      radial-gradient(300px 160px at 100% 0%, rgba(13,155,141,.08), transparent 72%),
+      linear-gradient(145deg,#fbfffe 0%,#ffffff 58%,#f6fdfb 100%);
+    box-shadow:0 12px 30px rgba(9,83,75,.065);
+  }
+  .scenario-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .scenario-kicker{margin:0 0 2px;color:#65958f;font-size:8.5px;font-weight:800;letter-spacing:.14em}
+  .scenario-title{margin:0;color:#173c39;font-size:16px;font-weight:800;letter-spacing:.02em}
+  .scenario-equal-badge{
+    flex:0 0 auto;
+    padding:4px 8px;
+    border:1px solid rgba(13,155,141,.2);
+    border-radius:7px;
+    background:var(--angle-soft);
+    color:var(--angle-deep);
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:11px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .scenario-switch{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:3px;
+    margin-top:10px;
+    padding:3px;
+    border:1px solid #dceeea;
+    border-radius:10px;
+    background:#eef8f6;
+  }
+  .scenario-tab{
+    appearance:none;
+    border:0;
+    border-radius:7px;
+    padding:7px 6px;
+    background:transparent;
+    color:#6d8b87;
+    font-size:10.5px;
+    font-weight:700;
+    cursor:pointer;
+    transition:background .18s,color .18s,box-shadow .18s;
+  }
+  .scenario-tab:hover{background:rgba(255,255,255,.65);color:#24514c}
+  .scenario-tab[aria-pressed="true"]{
+    background:#fff;
+    color:var(--angle-deep);
+    box-shadow:0 2px 7px rgba(9,83,75,.1),0 0 0 1px rgba(13,155,141,.04);
+  }
+  .scenario-lede{
+    margin:8px 1px 0;
+    color:#708985;
+    font-size:10px;
+    line-height:1.55;
+    font-weight:550;
+  }
+  .scenario-fixed-control{
+    margin-top:9px;
+    padding:9px 10px 7px;
+    border:1px solid #e1efec;
+    border-radius:10px;
+    background:rgba(255,255,255,.68);
+  }
+  .scenario-fixed-control .control-meta{margin-bottom:1px;color:#728b87}
+  .scenario-fixed-control .control-meta output{color:var(--angle-deep)}
+  .scenario-angle-control{
+    margin-top:8px;
+    padding:9px 10px 6px;
+    border:1px solid rgba(13,155,141,.19);
+    border-radius:10px;
+    background:linear-gradient(145deg,rgba(239,252,249,.9),rgba(255,255,255,.82));
+  }
+  .scenario-angle-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .scenario-angle-head .control-meta{flex:1;margin-bottom:0;color:#5e807b}
+  .scenario-angle-head .control-meta output{color:var(--angle-deep);font-size:11.5px}
+  .scenario-play-btn{
+    appearance:none;
+    display:flex;align-items:center;gap:4px;
+    height:25px;
+    padding:0 8px;
+    border:1px solid rgba(13,155,141,.2);
+    border-radius:7px;
+    background:#fff;
+    color:var(--angle-deep);
+    font-size:9px;
+    font-weight:750;
+    cursor:pointer;
+    box-shadow:0 2px 6px rgba(9,83,75,.05);
+    transition:background .18s,border-color .18s;
+  }
+  .scenario-play-btn:hover{background:var(--angle-soft);border-color:rgba(13,155,141,.38)}
+  .scenario-play-btn svg{width:10px;height:10px}
+  .scenario-angle-scale{display:flex;justify-content:space-between;margin:-1px 1px 0;color:#9aaba8;font-size:8.5px;font-weight:650}
+  .scenario-metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+  .scenario-metric{
+    padding:8px 9px 7px;
+    border:1px solid #e0efec;
+    border-radius:10px;
+    background:rgba(255,255,255,.72);
+  }
+  .scenario-metric.result{border-color:#f2e2e7;background:rgba(255,250,251,.88)}
+  .metric-top{display:flex;align-items:center;justify-content:space-between;gap:5px;color:#748c89;font-size:9px;font-weight:650;white-space:nowrap}
+  .metric-tag{
+    padding:2px 5px;
+    border-radius:4px;
+    background:var(--angle-soft);
+    color:var(--angle-deep);
+    font-size:8px;
+    font-weight:800;
+    letter-spacing:.04em;
+  }
+  .metric-tag.changing{background:#fff0d9;color:#b66a0b}
+  .scenario-metric.result .metric-tag.changing{background:#fff0f3;color:#c72d50}
+  .scenario-metric strong{display:block;margin-top:2px;color:#173c39;font-size:18px;line-height:1;font-weight:800;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+  .scenario-metric.result strong{color:var(--res)}
+  .scenario-metric strong small{font-size:9px;color:#8b9c99;font-weight:700;letter-spacing:0}
+  .scenario-chart{
+    margin-top:9px;
+    padding:8px 9px 5px;
+    border:1px solid #e1efec;
+    border-radius:11px;
+    background:rgba(255,255,255,.64);
+  }
+  .scenario-chart-head{display:flex;align-items:center;justify-content:space-between;gap:7px;color:#78908c;font-size:9px;font-weight:650}
+  .trend-pill{
+    flex:0 0 auto;
+    padding:2px 6px;
+    border-radius:4px;
+    background:var(--angle-soft);
+    color:var(--angle-deep);
+    font-size:8px;
+    font-weight:800;
+    letter-spacing:.02em;
+  }
+  #scenarioChartSvg{display:block;width:100%;height:auto;margin-top:2px;overflow:visible}
+  .scenario-chart-legend{display:flex;justify-content:flex-end;gap:10px;margin-top:1px;color:#8c9e9b;font-size:8px;font-weight:650}
+  .scenario-chart-legend span{display:flex;align-items:center;gap:4px}
+  .chart-dot{width:5px;height:5px;border-radius:50%}
+  .chart-dot.component{background:var(--f1)}
+  .chart-dot.resultant{background:var(--res)}
+  .scenario-footnote{margin:7px 1px 0;color:#91a4a1;font-size:8.5px;line-height:1.45;font-weight:550}
+
+  .insight-card{
+    flex:0 0 auto;
+    display:flex;
+    gap:10px;
+    padding:13px 14px;
+    border-radius:18px;
+    background:
+      radial-gradient(300px 120px at 100% 0%, rgba(70,124,210,.28), transparent 70%),
+      linear-gradient(135deg,#102a4b 0%,#183a63 100%);
+    color:#eaf2fc;
+    box-shadow:0 14px 32px rgba(16,42,77,.17);
+  }
+  .insight-icon{
+    width:29px;height:29px;
+    flex:0 0 auto;
+    display:grid;place-items:center;
+    border-radius:9px;
+    background:rgba(255,255,255,.1);
+    color:#9fc4ff;
+    border:1px solid rgba(255,255,255,.09);
+  }
+  .insight-icon svg{width:15px;height:15px}
+  .insight-body{min-width:0}
+  .insight-title{margin:0 0 3px;font-size:11.5px;font-weight:800;letter-spacing:.04em;color:#f3f8ff}
+  .insight-text{margin:0;color:#afc2da;font-size:10px;line-height:1.6;font-weight:500}
+  .insight-text b{color:#dbe9fb;font-weight:750}
+  .insight-formula{
+    margin-top:6px;
+    padding-top:6px;
+    border-top:1px solid rgba(255,255,255,.1);
+    color:#bcd0e8;
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:11px;
+    letter-spacing:.01em;
+  }
+  .insight-formula strong{color:#fff;font-weight:700}
+  .panel-foot{
+    padding:0 6px 2px;
+    color:#93a1b2;
+    font-size:9.5px;
+    line-height:1.5;
+    display:flex;align-items:center;gap:6px;
+  }
+  .panel-foot svg{width:11px;height:11px;flex:0 0 auto}
+
+  /* ---------- Responsive ---------- */
+  @media (max-height:800px) and (min-width:931px){
+    .side-panel{gap:8px}
+    .scenario-card{padding:12px 14px 10px}
+    .scenario-switch{margin-top:8px}
+    .scenario-lede{margin-top:6px}
+    .scenario-fixed-control{margin-top:7px;padding:8px 10px 6px}
+    .scenario-angle-control{margin-top:7px;padding:8px 10px 5px}
+    .scenario-metrics{margin-top:7px}
+    .scenario-chart{margin-top:7px;padding:7px 8px 4px}
+    .scenario-footnote{margin-top:5px}
+    .insight-card{padding:11px 13px}
+  }
+  @media (max-width:1250px){
+    .page{padding:18px 20px 16px}
+    .workspace{grid-template-columns:minmax(0,1fr) 340px;gap:14px}
+    .stage-toolbar{padding-bottom:10px}
+    .tab{padding:8px 11px}
+    .mode-explain{max-width:56%}
+    .result-big b{font-size:26px}
+    .force-card{padding:12px 14px 10px}
+  }
+  @media (max-width:1080px){
+    .title-desc{display:none}
+    .workspace{grid-template-columns:minmax(0,1fr) 322px;gap:12px}
+    .tab{gap:5px;font-size:11.5px;padding:8px 9px}
+    .tab svg{width:14px;height:14px}
+    .stage-footer{gap:10px}
+    .legend{gap:9px}
+    .mode-explain{font-size:10px;max-width:55%}
+    .live-pill{display:none}
+  }
+  @media (max-width:930px){
+    body{overflow:auto}
+    .page{height:auto;min-height:100dvh;padding:14px 14px 24px;gap:13px}
+    .topbar{padding:0 2px}
+    .title-desc{display:none}
+    .equation-chip{display:none}
+    h1{font-size:25px}
+    .brand-mark{width:45px;height:45px;border-radius:14px}
+    .brand-mark svg{width:31px;height:31px}
+    .workspace{grid-template-columns:minmax(0,1fr);gap:13px}
+    .stage-card{height:min(68vh,580px);min-height:440px}
+    .side-panel{overflow:visible;padding-right:0;display:grid;grid-template-columns:1fr 1fr;align-items:start}
+    .panel-header{grid-column:1/-1}
+    .force-card{height:100%}
+    .result-card{grid-column:1/-1}
+    .scenario-card{grid-column:1/-1}
+    .insight-card{grid-column:1/-1}
+    .panel-foot{grid-column:1/-1}
+  }
+  @media (max-width:640px){
+    .page{padding:11px 10px 20px}
+    .topbar{gap:10px}
+    h1{font-size:22px}
+    .kicker{font-size:8.5px;letter-spacing:.12em}
+    .title-line{gap:0}
+    .ghost-btn{width:36px;height:36px;padding:0;justify-content:center;font-size:0}
+    .ghost-btn svg{width:15px;height:15px}
+    .brand{gap:10px}
+    .brand-mark{width:39px;height:39px;border-radius:12px}
+    .brand-mark svg{width:27px;height:27px}
+    .stage-card{padding:8px;border-radius:19px;height:min(63vh,520px);min-height:400px}
+    .stage-toolbar{padding:1px 1px 8px;gap:6px;align-items:flex-start}
+    .tabs{flex:1;padding:3px;gap:2px}
+    .tab{flex:1;justify-content:center;padding:7px 4px;font-size:10.5px;gap:4px}
+    .tab svg{display:none}
+    .play-btn{height:31px;padding:0 9px;font-size:10px;white-space:nowrap}
+    .play-btn span{display:none}
+    .morph-btn{height:31px;width:auto;padding:0 8px;gap:4px}
+    .morph-btn span{display:none}
+    .morph-btn::after{content:"推导";font-size:10px;font-weight:750;letter-spacing:.02em}
+    .board{border-radius:14px}
+    .mode-chip{top:9px;left:9px;padding:5px 7px;font-size:9px}
+    .angle-status{display:none!important}
+    .range-card{top:9px;left:9px;right:auto;width:190px;padding:8px 10px}
+    .range-formula{font-size:10.5px;margin-top:5px}
+    .v-label-name{font-size:12.5px}
+    .v-label-value{font-size:10.5px}
+    .mini-label{font-size:9.5px}
+    .range-numbers{font-size:9px;margin-top:4px}
+    .range-numbers b{font-size:10.5px}
+    .range-track{display:none}
+    .range-current{font-size:9px;margin-top:5px}
+    .scale-wrap{left:12px;bottom:11px;font-size:8.5px}
+    .scale-bar{height:7px}
+    .board-tip{display:none!important}
+    .stage-footer{padding:8px 4px 0;gap:8px;flex-wrap:wrap}
+    .legend{gap:7px}
+    .legend-item{font-size:9.5px}
+    .legend-swatch{width:13px}
+    .mode-explain{border-left:0;padding-left:0;max-width:100%;margin-left:0;font-size:9.5px}
+    .side-panel{display:flex;gap:9px}
+    .force-card,.result-card,.insight-card{border-radius:15px}
+    .result-big b{font-size:26px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none">
+          <path d="M8 30.5 20 13.5" stroke="#7fb2ff" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="m18.2 15.1 2.3-2.5.5 3.5" fill="#7fb2ff"/>
+          <path d="M8 30.5 30 23.5" stroke="#ffc06a" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="m27.7 22.3 2.8.4-1.9 2.2" fill="#ffc06a"/>
+          <path d="M8 30.5 32.2 15.3" stroke="#ff7b95" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="m30.3 14.3 2.5-.6-1.1 2.4" fill="#ff7b95"/>
+          <circle cx="8" cy="30.5" r="2" fill="#fff"/>
+          <path d="M20 13.5 32.2 15.3" stroke="rgba(255,255,255,.22)" stroke-width="1.4" stroke-dasharray="3 3"/>
+          <path d="M30 23.5 32.2 15.3" stroke="rgba(255,255,255,.22)" stroke-width="1.4" stroke-dasharray="3 3"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <p class="kicker">Interactive Physics · 矢量实验室</p>
+        <div class="title-line">
+          <h1>力的合成</h1>
+          <span class="title-desc">平行四边形定则 · 三角形定则 · 圆轨迹 · 夹角探究</span>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="equation-chip" aria-label="合力等于两个分力的矢量和">
+        <span class="eq-r">F</span><span>=</span><span class="eq-f1">F₁</span><span>+</span><span class="eq-f2">F₂</span>
+      </div>
+      <button class="ghost-btn" id="resetBtn" type="button" title="重置演示">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3.1 6.1A5.1 5.1 0 1 1 3 9.4M3.1 6.1V2.7M3.1 6.1h3.4" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>重置演示</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="stage-card" aria-label="力的合成交互演示区">
+      <div class="stage-toolbar">
+        <div class="tabs" role="tablist" aria-label="选择演示模式">
+          <button class="tab" type="button" role="tab" id="tab-parallelogram" data-view="parallelogram" aria-controls="board" aria-selected="true">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M3.2 12.8 9.1 8.8 14.8 10 8.9 14z" stroke="currentColor" stroke-width="1.15" stroke-linejoin="round"/>
+              <path d="M3.2 12.8 9.1 8.8M14.8 10 8.9 14" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-dasharray="2 2"/>
+              <path d="M3.2 12.8 14.8 10" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"/>
+            </svg>
+            <span>平行四边形</span>
+          </button>
+          <button class="tab" type="button" role="tab" id="tab-triangle" data-view="triangle" aria-controls="board" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M3 13.6 6.1 5.2 14.8 7.8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M3 13.6 6.1 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M6.1 5.2 14.8 7.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M3 13.6 14.8 7.8" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.2 2" stroke-linecap="round"/>
+            </svg>
+            <span>矢量三角形</span>
+          </button>
+          <button class="tab" type="button" role="tab" id="tab-circle" data-view="circle" aria-controls="board" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.6" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.2 2"/>
+              <circle cx="9" cy="9" r="1.3" fill="currentColor"/>
+              <path d="M9 9 13.4 5.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="13.4" cy="5.8" r="1.35" fill="#fff" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+            <span>圆轨迹探究</span>
+          </button>
+          <button class="tab" type="button" role="tab" id="tab-angle" data-view="angle" aria-controls="board" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M3.2 14 14.8 14M3.2 14 11.9 4.3" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"/>
+              <path d="M9.2 14a6 6 0 0 0-1.8-4.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2 2"/>
+              <circle cx="3.2" cy="14" r="1.25" fill="currentColor"/>
+            </svg>
+            <span>夹角探究</span>
+          </button>
+        </div>
+        <div class="stage-tools">
+          <button class="morph-btn" id="morphBtn" type="button" title="演示 F₂ 从起点平移到 F₁ 末端" aria-label="演示从平行四边形变换到三角形">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2.4 11.7 5.5 5 12.4 6.4 9.3 13z" stroke="currentColor" stroke-width="1.05" stroke-linejoin="round" opacity=".55"/>
+              <path d="M2.4 11.7 12.4 6.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M2.4 11.7 5.5 5" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
+              <path d="M5.5 5 12.4 6.4" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" opacity=".55"/>
+              <path d="m10.7 10.4 2.1-.7-.4 2.1" fill="currentColor"/>
+            </svg>
+            <span>演示推导</span>
+          </button>
+          <button class="play-btn" id="playBtn" type="button" aria-label="暂停旋转">
+            <svg class="pause-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="3.2" y="2.5" width="2.6" height="9" rx="1" fill="currentColor"/>
+              <rect x="8.3" y="2.5" width="2.6" height="9" rx="1" fill="currentColor"/>
+            </svg>
+            <svg class="play-icon" viewBox="0 0 14 14" fill="none" aria-hidden="true" style="display:none">
+              <path d="M4.2 2.6 11.4 7l-7.2 4.4z" fill="currentColor"/>
+            </svg>
+            <span>暂停旋转</span>
+          </button>
+          <div class="live-pill"><span class="live-dot"></span><span>实时联动</span></div>
+        </div>
+      </div>
+
+      <div class="board" id="board">
+        <svg id="scene" role="img" aria-label="力矢量图，显示分力、合力及辅助圆"></svg>
+        <div class="board-overlay mode-chip" id="modeChip"><span class="chip-dot"></span><span id="modeChipText">平行四边形定则</span></div>
+        <div class="board-overlay range-card" id="rangeCard">
+          <div class="range-head"><span class="orbit-dot"></span>圆轨迹 · 合力范围</div>
+          <div class="range-formula">|F₁ − F₂| ≤ F ≤ F₁ + F₂</div>
+          <div class="range-numbers">
+            <span>最小 <b id="rangeMin">2.0</b> N</span>
+            <span>最大 <b id="rangeMax">12.0</b> N</span>
+          </div>
+          <div class="range-track"><span class="range-marker" id="rangeMarker"></span></div>
+          <p class="range-current">当前合力 F = <b id="rangeCurrent">10.2</b> N</p>
+        </div>
+        <div class="board-overlay angle-status" id="angleStatus">
+          <span class="angle-status-kicker">保持不变</span>
+          <strong id="angleFixedValue">合力 F = 8.0 N</strong>
+          <span class="angle-status-sub"><span id="angleVariableLabel">分力 F₁ = F₂</span> 随 θ 变化</span>
+          <span class="angle-status-theta">夹角 θ = <b id="angleThetaValue">60°</b></span>
+        </div>
+        <div class="board-overlay scale-wrap" aria-hidden="true">
+          <div class="scale-bar" id="scaleBar"></div>
+          <span id="scaleText">5 N</span>
+        </div>
+        <div class="board-overlay board-tip" id="boardTip">拖动圆周上的亮点，改变 F₂ 的方向</div>
+      </div>
+
+      <div class="stage-footer">
+        <div class="legend" aria-label="图例">
+          <span class="legend-item"><i class="legend-swatch" style="--swatch:var(--f1)"></i>分力 F₁</span>
+          <span class="legend-item"><i class="legend-swatch" style="--swatch:var(--f2)"></i>分力 F₂</span>
+          <span class="legend-item"><i class="legend-swatch" style="--swatch:var(--res)"></i>合力 F</span>
+          <span class="legend-item legend-circle-item" id="circleLegend"><i class="legend-swatch dashed"></i>圆轨迹</span>
+          <span class="legend-item legend-angle-item" id="angleLegend"><i class="legend-swatch dashed" style="--swatch:var(--angle)"></i>定值辅助圆</span>
+        </div>
+        <p class="mode-explain" id="modeExplain"><strong>平行四边形定则：</strong>以 F₁、F₂ 为邻边作平行四边形，从共同起点出发的对角线就是合力 F。</p>
+      </div>
+    </section>
+
+    <aside class="side-panel" aria-label="参数控制面板">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker" id="panelKicker">PARAMETERS</p>
+          <h2 class="panel-title" id="panelTitle">调节矢量</h2>
+        </div>
+        <div class="sync-badge"><span class="sync-dot"></span>图形实时联动</div>
+      </div>
+
+      <section class="scenario-card" id="scenarioCard" aria-labelledby="scenarioTitle" hidden>
+        <div class="scenario-head">
+          <div>
+            <p class="scenario-kicker">EQUAL COMPONENTS</p>
+            <h3 class="scenario-title" id="scenarioTitle">等大分力</h3>
+          </div>
+          <span class="scenario-equal-badge">F₁ = F₂</span>
+        </div>
+
+        <div class="scenario-switch" role="group" aria-label="选择保持不变的情景">
+          <button class="scenario-tab" type="button" data-scenario="fixedR" aria-pressed="true">合力大小不变</button>
+          <button class="scenario-tab" type="button" data-scenario="fixedF" aria-pressed="false">分力大小不变</button>
+        </div>
+
+        <p class="scenario-lede" id="scenarioLede">保持合力大小不变，改变两分力夹角，观察两个等大分力如何变化。</p>
+
+        <div class="scenario-fixed-control">
+          <div class="control-meta"><span id="scenarioFixedLabel">固定合力 F</span><output id="scenarioFixedOut">8.0 N</output></div>
+          <input id="scenarioFixed" type="range" min="4" max="8" step="0.1" value="8" aria-label="固定合力大小，单位牛顿">
+        </div>
+
+        <div class="scenario-angle-control">
+          <div class="scenario-angle-head">
+            <div class="control-meta"><span>两分力夹角 θ</span><output id="scenarioThetaOut">60°</output></div>
+            <button class="scenario-play-btn" id="scenarioPlayBtn" type="button" aria-label="自动演示夹角变化">
+              <svg class="scenario-pause-icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <rect x="2.6" y="2" width="2.3" height="8" rx=".9" fill="currentColor"/>
+                <rect x="7.1" y="2" width="2.3" height="8" rx=".9" fill="currentColor"/>
+              </svg>
+              <svg class="scenario-play-icon" viewBox="0 0 12 12" fill="none" aria-hidden="true" style="display:none">
+                <path d="M3.4 2.1 9.9 6l-6.5 3.9z" fill="currentColor"/>
+              </svg>
+              <span>自动演示</span>
+            </button>
+          </div>
+          <input id="scenarioTheta" type="range" min="0" max="140" step="0.1" value="60" aria-label="两分力夹角，单位度">
+          <div class="scenario-angle-scale"><span>0°</span><span id="scenarioThetaMax">140°</span></div>
+        </div>
+
+        <div class="scenario-metrics">
+          <div class="scenario-metric">
+            <div class="metric-top"><span>分力大小 F₁ = F₂</span><span class="metric-tag changing" id="componentTag">变化</span></div>
+            <strong id="scenarioComponentValue">4.6 <small>N</small></strong>
+          </div>
+          <div class="scenario-metric result">
+            <div class="metric-top"><span>合力大小 F</span><span class="metric-tag" id="resultantTag">不变</span></div>
+            <strong id="scenarioResultValue">8.0 <small>N</small></strong>
+          </div>
+        </div>
+
+        <div class="scenario-chart">
+          <div class="scenario-chart-head">
+            <span id="scenarioChartTitle">分力大小随夹角变化</span>
+            <span class="trend-pill" id="scenarioTrend">θ ↑ → F₁、F₂ ↑</span>
+          </div>
+          <svg id="scenarioChartSvg" viewBox="0 0 300 104" role="img" aria-label="等大分力夹角变化时的矢量大小曲线"></svg>
+          <div class="scenario-chart-legend">
+            <span><i class="chart-dot component"></i><span id="scenarioLegendComponent">分力 F₁ = F₂</span></span>
+            <span><i class="chart-dot resultant"></i>合力 F</span>
+          </div>
+        </div>
+        <p class="scenario-footnote" id="scenarioFootnote">点击“自动演示”或拖动角度滑块，观察分力随夹角增大而增大。</p>
+      </section>
+
+      <section class="force-card f1" id="f1Card" aria-labelledby="f1Name">
+        <div class="force-head">
+          <div class="force-ident">
+            <span class="force-dot"></span>
+            <span class="force-name" id="f1Name">F₁</span>
+            <span class="force-tag">分力一</span>
+          </div>
+          <div class="force-readout"><span id="f1Readout">7.0</span><small>N</small></div>
+        </div>
+        <div class="control">
+          <div class="control-meta"><span>大小</span><output id="f1MagOut">7.0 N</output></div>
+          <input id="f1Mag" type="range" min="0.5" max="12" step="0.1" value="7" aria-label="F1 大小，单位牛顿">
+        </div>
+        <div class="control">
+          <div class="control-meta"><span>方向</span><output id="f1AngleOut">20°</output></div>
+          <input id="f1Angle" type="range" min="0" max="360" step="1" value="20" aria-label="F1 方向，单位度">
+        </div>
+        <div class="lock-note">
+          <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2.2" y="5.2" width="7.6" height="5.4" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M4 5.2V3.9a2 2 0 1 1 4 0v1.3" stroke="currentColor" stroke-width="1.1"/></svg>
+          圆轨迹模式下锁定大小与方向
+        </div>
+      </section>
+
+      <section class="force-card f2" id="f2Card" aria-labelledby="f2Name">
+        <div class="force-head">
+          <div class="force-ident">
+            <span class="force-dot"></span>
+            <span class="force-name" id="f2Name">F₂</span>
+            <span class="force-tag">分力二</span>
+          </div>
+          <div class="force-readout"><span id="f2Readout">5.0</span><small>N</small></div>
+        </div>
+        <div class="control">
+          <div class="control-meta"><span>大小</span><output id="f2MagOut">5.0 N</output></div>
+          <input id="f2Mag" type="range" min="0.5" max="12" step="0.1" value="5" aria-label="F2 大小，单位牛顿">
+        </div>
+        <div class="control">
+          <div class="control-meta"><span>方向</span><output id="f2AngleOut">85°</output></div>
+          <input id="f2Angle" type="range" min="0" max="360" step="1" value="85" aria-label="F2 方向，单位度">
+        </div>
+        <div class="lock-note">
+          <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="2.2" y="5.2" width="7.6" height="5.4" rx="1.2" stroke="currentColor" stroke-width="1.1"/><path d="M4 5.2V3.9a2 2 0 1 1 4 0v1.3" stroke="currentColor" stroke-width="1.1"/></svg>
+          圆轨迹模式下锁定大小
+        </div>
+      </section>
+
+      <section class="result-card" id="resultCard" aria-labelledby="resultTitle">
+        <div class="result-head">
+          <div>
+            <p class="result-eyebrow">RESULTANT</p>
+            <h3 class="result-title" id="resultTitle">合力 <span class="res-symbol">F</span></h3>
+          </div>
+          <div class="result-big"><b id="resultMag">10.2</b><span>N</span></div>
+        </div>
+        <div class="result-stats">
+          <div class="stat"><span>合力方向</span><b id="resultAngle">46°</b></div>
+          <div class="stat"><span>两分力夹角</span><b id="angleBetween">65°</b></div>
+        </div>
+        <div class="control result-control">
+          <div class="control-meta"><span>合力大小</span><span class="control-note">拖动联动两分力</span></div>
+          <input id="resultMagInput" type="range" min="0.5" max="24" step="0.1" value="10.2" aria-label="合力大小，单位牛顿">
+        </div>
+        <p class="result-note" id="resultNote">拖动滑块时，两分力会按当前比例同步缩放，方向保持不变。</p>
+      </section>
+
+      <section class="insight-card" id="insightCard" aria-live="polite">
+        <div class="insight-icon" aria-hidden="true">
+          <svg viewBox="0 0 18 18" fill="none"><path d="M9 2.4v5.4M9 11.5v4.1M2.4 9h5.1M10.5 9h5.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/></svg>
+        </div>
+        <div class="insight-body">
+          <h4 class="insight-title" id="insightTitle">观察要点</h4>
+          <p class="insight-text" id="insightText">保持 F₁ 不变，只改变 F₂ 的方向，合力的大小与方向都会随之改变。</p>
+          <div class="insight-formula" id="insightFormula">F = F₁ + F₂</div>
+        </div>
+      </section>
+
+      <p class="panel-foot" id="panelFoot">
+        <svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1.6a5.4 5.4 0 1 0 0 10.8A5.4 5.4 0 0 0 7 1.6Zm0 2.5v3.3m0 2.2v.1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        两分力的大小可在 0.5–12 N 之间调节；圆周模式中 F₂ 的方向可以连续变化。
+      </p>
+    </aside>
+  </main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const TAU = Math.PI * 2;
+  const DEG = Math.PI / 180;
+  const MAX_MAG = 12;
+  const MIN_MAG = 0.5;
+  const DEFAULTS = Object.freeze({
+    f1: { mag: 7, angle: 20 },
+    f2: { mag: 5, angle: 85 }
+  });
+  const SCENARIO_DEFAULTS = Object.freeze({
+    kind: 'fixedR',
+    theta: 60,
+    fixedR: 8,
+    fixedF: 5
+  });
+
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const normalizeAngle = angle => ((angle % 360) + 360) % 360;
+  const toRad = angle => angle * DEG;
+  const fmt = value => Number(value).toFixed(1);
+  const fmtAngle = angle => `${Math.round(normalizeAngle(angle))}°`;
+
+  const state = {
+    f1: { ...DEFAULTS.f1 },
+    f2: { ...DEFAULTS.f2 },
+    view: 'parallelogram',
+    playing: false,
+    morphT: 1,
+    morphing: false,
+    scenario: {
+      ...SCENARIO_DEFAULTS,
+      playing: false,
+      direction: 1
+    }
+  };
+
+  const els = {
+    board: $('#board'),
+    svg: $('#scene'),
+    tabs: $$('.tab'),
+    resetBtn: $('#resetBtn'),
+    playBtn: $('#playBtn'),
+    morphBtn: $('#morphBtn'),
+    modeChip: $('#modeChip'),
+    modeChipText: $('#modeChipText'),
+    rangeCard: $('#rangeCard'),
+    rangeMin: $('#rangeMin'),
+    rangeMax: $('#rangeMax'),
+    rangeCurrent: $('#rangeCurrent'),
+    rangeMarker: $('#rangeMarker'),
+    angleStatus: $('#angleStatus'),
+    angleFixedValue: $('#angleFixedValue'),
+    angleVariableLabel: $('#angleVariableLabel'),
+    angleThetaValue: $('#angleThetaValue'),
+    scaleBar: $('#scaleBar'),
+    scaleText: $('#scaleText'),
+    boardTip: $('#boardTip'),
+    circleLegend: $('#circleLegend'),
+    angleLegend: $('#angleLegend'),
+    modeExplain: $('#modeExplain'),
+    panelKicker: $('#panelKicker'),
+    panelTitle: $('#panelTitle'),
+    panelFoot: $('#panelFoot'),
+    f1Card: $('#f1Card'),
+    f2Card: $('#f2Card'),
+    resultCard: $('#resultCard'),
+    f1Mag: $('#f1Mag'),
+    f1Angle: $('#f1Angle'),
+    f2Mag: $('#f2Mag'),
+    f2Angle: $('#f2Angle'),
+    resultMagInput: $('#resultMagInput'),
+    f1Readout: $('#f1Readout'),
+    f2Readout: $('#f2Readout'),
+    f1MagOut: $('#f1MagOut'),
+    f1AngleOut: $('#f1AngleOut'),
+    f2MagOut: $('#f2MagOut'),
+    f2AngleOut: $('#f2AngleOut'),
+    resultMag: $('#resultMag'),
+    resultAngle: $('#resultAngle'),
+    angleBetween: $('#angleBetween'),
+    resultNote: $('#resultNote'),
+    insightTitle: $('#insightTitle'),
+    insightText: $('#insightText'),
+    insightFormula: $('#insightFormula'),
+    scenarioCard: $('#scenarioCard'),
+    scenarioTabs: $$('.scenario-tab'),
+    scenarioLede: $('#scenarioLede'),
+    scenarioFixed: $('#scenarioFixed'),
+    scenarioFixedLabel: $('#scenarioFixedLabel'),
+    scenarioFixedOut: $('#scenarioFixedOut'),
+    scenarioTheta: $('#scenarioTheta'),
+    scenarioThetaOut: $('#scenarioThetaOut'),
+    scenarioThetaMax: $('#scenarioThetaMax'),
+    scenarioPlayBtn: $('#scenarioPlayBtn'),
+    componentTag: $('#componentTag'),
+    resultantTag: $('#resultantTag'),
+    scenarioComponentValue: $('#scenarioComponentValue'),
+    scenarioResultValue: $('#scenarioResultValue'),
+    scenarioChartTitle: $('#scenarioChartTitle'),
+    scenarioTrend: $('#scenarioTrend'),
+    scenarioChartSvg: $('#scenarioChartSvg'),
+    scenarioLegendComponent: $('#scenarioLegendComponent'),
+    scenarioFootnote: $('#scenarioFootnote')
+  };
+
+  let layout = null;
+  let rafId = null;
+  let lastFrame = 0;
+  let dragPoint = null;
+  let lastModeKey = null;
+  let savedVectors = null;
+  let angleRafId = null;
+  let angleLastFrame = 0;
+  let morphRafId = null;
+  let morphStart = 0;
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function vec(mag, angle) {
+    return { x: mag * Math.cos(toRad(angle)), y: mag * Math.sin(toRad(angle)) };
+  }
+
+  function computeVectors() {
+    const a = vec(state.f1.mag, state.f1.angle);
+    const b = vec(state.f2.mag, state.f2.angle);
+    const c = { x: a.x + b.x, y: a.y + b.y };
+    const mag = Math.hypot(c.x, c.y);
+    const angle = mag > 1e-9 ? normalizeAngle(Math.atan2(c.y, c.x) / DEG) : 0;
+    let between = Math.abs(normalizeAngle(state.f2.angle - state.f1.angle));
+    if (between > 180) between = 360 - between;
+    return { O: { x: 0, y: 0 }, A: a, B: b, C: c, rMag: mag, rAngle: angle, between };
+  }
+
+  function setFill(input) {
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const value = Number(input.value);
+    const pct = ((value - min) / (max - min)) * 100;
+    input.style.setProperty('--pct', `${clamp(pct, 0, 100)}%`);
+  }
+
+  function scenarioMaxTheta() {
+    return state.scenario.kind === 'fixedR' ? 140 : 180;
+  }
+
+  function scenarioFixedValue() {
+    return state.scenario.kind === 'fixedR' ? state.scenario.fixedR : state.scenario.fixedF;
+  }
+
+  function applyScenarioToState() {
+    if (state.view !== 'angle') return;
+    const s = state.scenario;
+    const half = s.theta / 2;
+    let componentMag;
+
+    if (s.kind === 'fixedR') {
+      const cosHalf = Math.max(0.05, Math.cos(toRad(half)));
+      componentMag = s.fixedR / (2 * cosHalf);
+    } else {
+      componentMag = s.fixedF;
+    }
+
+    state.f1.mag = componentMag;
+    state.f2.mag = componentMag;
+    state.f1.angle = normalizeAngle(90 - half);
+    state.f2.angle = normalizeAngle(90 + half);
+  }
+
+  function updateAll(options = {}) {
+    const { syncInputs = true } = options;
+    if (state.view === 'angle') applyScenarioToState();
+    const v = computeVectors();
+
+    // While the two component directions stay fixed, scaling both magnitudes
+    // can reach a continuous interval of resultant magnitudes. Keep the
+    // resultant slider exactly inside that reachable interval.
+    let reachableMin = 0.1;
+    let reachableMax = 24;
+    if (v.rMag > 0.08) {
+      const minK = Math.max(MIN_MAG / state.f1.mag, MIN_MAG / state.f2.mag);
+      const maxK = Math.min(MAX_MAG / state.f1.mag, MAX_MAG / state.f2.mag);
+      reachableMin = Math.max(0.1, v.rMag * minK);
+      reachableMax = Math.max(reachableMin + 0.1, Math.min(24, v.rMag * maxK));
+    }
+    els.resultMagInput.min = reachableMin.toFixed(1);
+    els.resultMagInput.max = reachableMax.toFixed(1);
+
+    if (syncInputs) {
+      els.f1Mag.value = state.f1.mag.toFixed(1);
+      els.f1Angle.value = Math.round(normalizeAngle(state.f1.angle));
+      els.f2Mag.value = state.f2.mag.toFixed(1);
+      els.f2Angle.value = Math.round(normalizeAngle(state.f2.angle));
+      els.resultMagInput.value = clamp(v.rMag, reachableMin, reachableMax).toFixed(1);
+    }
+
+    [els.f1Mag, els.f1Angle, els.f2Mag, els.f2Angle, els.resultMagInput].forEach(setFill);
+
+    els.f1Readout.textContent = fmt(state.f1.mag);
+    els.f2Readout.textContent = fmt(state.f2.mag);
+    els.f1MagOut.textContent = `${fmt(state.f1.mag)} N`;
+    els.f2MagOut.textContent = `${fmt(state.f2.mag)} N`;
+    els.f1AngleOut.textContent = fmtAngle(state.f1.angle);
+    els.f2AngleOut.textContent = fmtAngle(state.f2.angle);
+    els.resultMag.textContent = fmt(v.rMag);
+    els.resultAngle.textContent = v.rMag < 0.05 ? '—' : fmtAngle(v.rAngle);
+    els.angleBetween.textContent = `${Math.round(v.between)}°`;
+
+    const isCircle = state.view === 'circle';
+    const isAngle = state.view === 'angle';
+    const isTriangle = state.view === 'triangle';
+
+    els.rangeCard.classList.toggle('is-visible', isCircle);
+    els.circleLegend.classList.toggle('is-visible', isCircle);
+    els.angleStatus.classList.toggle('is-visible', isAngle);
+    els.angleLegend.classList.toggle('is-visible', isAngle);
+    els.boardTip.classList.toggle('is-visible', isCircle || isAngle);
+    els.boardTip.textContent = isCircle
+      ? '拖动圆周上的亮点，改变 F₂ 的方向'
+      : '拖动 θ 滑块，观察定值辅助圆与矢量变化';
+    els.playBtn.classList.toggle('is-visible', isCircle);
+    els.morphBtn.classList.toggle('is-visible', isTriangle);
+    els.board.classList.toggle('is-circle', isCircle);
+    els.board.classList.toggle('is-angle', isAngle);
+
+    els.f1Card.hidden = isAngle;
+    els.f2Card.hidden = isAngle;
+    els.resultCard.hidden = isAngle;
+    els.panelFoot.hidden = isAngle;
+    els.scenarioCard.hidden = !isAngle;
+    els.panelKicker.textContent = isAngle ? 'EXPERIMENT' : 'PARAMETERS';
+    els.panelTitle.textContent = isAngle ? '夹角实验' : '调节矢量';
+
+    const rangeMin = Math.abs(state.f1.mag - state.f2.mag);
+    const rangeMax = state.f1.mag + state.f2.mag;
+    if (isCircle) {
+      els.rangeMin.textContent = fmt(rangeMin);
+      els.rangeMax.textContent = fmt(rangeMax);
+      els.rangeCurrent.textContent = fmt(v.rMag);
+      const pct = rangeMax - rangeMin > 1e-6
+        ? clamp((v.rMag - rangeMin) / (rangeMax - rangeMin) * 100, 0, 100)
+        : 50;
+      els.rangeMarker.style.left = `${pct}%`;
+    }
+
+    els.f1Card.classList.toggle('is-locked', isCircle);
+    els.f2Card.classList.toggle('is-locked', isCircle);
+    els.f2Card.classList.toggle('direction-live', isCircle);
+    els.f1Mag.disabled = isCircle;
+    els.f1Angle.disabled = isCircle;
+    els.f2Mag.disabled = isCircle;
+    els.f2Angle.disabled = false;
+    els.resultMagInput.disabled = isCircle;
+    els.resultCard.classList.toggle('is-locked', isCircle);
+
+    if (isCircle) {
+      els.resultNote.textContent = '圆轨迹模式中，合力大小由 F₂ 的方向决定；切换到其他模式即可继续调节分力。';
+    } else if (v.rMag < 0.05) {
+      els.resultNote.textContent = '两分力等大反向，合力为零；改变任一分力或拖动合力滑块即可打破平衡。';
+    } else {
+      els.resultNote.textContent = '拖动滑块时，两分力会按当前比例同步缩放，方向保持不变。';
+    }
+
+    if (isAngle) updateScenarioUI(v);
+
+    const modeKey = state.view + (isAngle ? `:${state.scenario.kind}` : '');
+    if (lastModeKey !== modeKey) {
+      updateModeCopy();
+      lastModeKey = modeKey;
+    }
+    updatePlayButton();
+    updateMorphButton();
+    updateScenarioPlayButton();
+    els.board.classList.toggle('is-paused', isCircle && !state.playing);
+    updateScene(v);
+  }
+
+  function updateModeCopy() {
+    if (state.view === 'parallelogram') {
+      els.modeChip.classList.remove('circle', 'triangle', 'angle');
+      els.modeChipText.textContent = '平行四边形定则';
+      els.modeExplain.innerHTML = '<strong>平行四边形定则：</strong>以 F₁、F₂ 为邻边作平行四边形，从共同起点出发的对角线就是合力 F。';
+      els.insightTitle.textContent = '观察要点';
+      els.insightText.textContent = '改变任一分力的大小或方向，平行四边形的形状随之变化，对角线始终表示合力。';
+      els.insightFormula.innerHTML = '<strong>F</strong> = <strong>F₁</strong> + <strong>F₂</strong>';
+    } else if (state.view === 'triangle') {
+      els.modeChip.classList.remove('circle', 'angle');
+      els.modeChip.classList.add('triangle');
+      els.modeChipText.textContent = '三角形定则';
+      els.modeExplain.innerHTML = '<strong>三角形定则：</strong>将 F₂ 平移到 F₁ 末端，首尾相接；合力 F 就是第三条边。点击“演示推导”查看过程。';
+      els.insightTitle.textContent = '从平行四边形到三角形';
+      els.insightText.textContent = '平行四边形被对角线 F 分成两个全等三角形。把 F₂ 沿 F₁ 平移，就得到三角形定则。';
+      els.insightFormula.innerHTML = '<strong>F₁</strong> + <strong>F₂</strong> = <strong>F</strong>';
+    } else if (state.view === 'angle') {
+      const fixedR = state.scenario.kind === 'fixedR';
+      els.modeChip.classList.remove('circle', 'triangle');
+      els.modeChip.classList.add('angle');
+      els.modeChipText.textContent = fixedR ? '等大分力 · 合力大小不变' : '等大分力 · 分力大小不变';
+      if (fixedR) {
+        els.modeExplain.innerHTML = '<strong>合力大小不变：</strong>两个分力等大且关于合力对称；夹角 θ 越大，F₁、F₂ 越大，合力 F 保持不变。';
+        els.insightTitle.textContent = '合力大小不变时';
+        els.insightText.textContent = '两个等大分力的合力沿角平分线。夹角增大时，要保持合力大小不变，分力必须同时增大。';
+        els.insightFormula.innerHTML = '<strong>F₁ = F₂</strong> = F / (2cos(θ/2))';
+      } else {
+        els.modeExplain.innerHTML = '<strong>分力大小不变：</strong>两个分力大小不变，夹角 θ 越大，合力 F 越小；θ = 180° 时合力为零。';
+        els.insightTitle.textContent = '分力大小不变时';
+        els.insightText.textContent = '两分力大小不变，夹角越大，它们越接近互相抵消，合力越小。';
+        els.insightFormula.innerHTML = '<strong>F</strong> = 2F₁cos(θ/2)';
+      }
+    } else {
+      els.modeChip.classList.add('circle');
+      els.modeChip.classList.remove('triangle', 'angle');
+      els.modeChipText.textContent = '圆轨迹辅助';
+      els.modeExplain.innerHTML = '<strong>圆轨迹：</strong>固定 F₁，只改变 F₂ 的方向；把 F₂ 平移到 F₁ 末端，合力末端就落在以 F₁ 末端为圆心、|F₂| 为半径的圆上。';
+      els.insightTitle.textContent = '合力的大小范围';
+      els.insightText.textContent = '圆上任意一点到 O 的距离，就是对应方向的合力大小；最远点与最近点给出最大、最小合力。';
+      els.insightFormula.innerHTML = '<strong>|F₁ − F₂|</strong> ≤ F ≤ <strong>F₁ + F₂</strong>';
+    }
+  }
+
+  function updatePlayButton() {
+    const paused = !state.playing;
+    const pauseIcon = $('.pause-icon', els.playBtn);
+    const playIcon = $('.play-icon', els.playBtn);
+    const text = $('span', els.playBtn);
+    pauseIcon.style.display = paused ? 'none' : '';
+    playIcon.style.display = paused ? '' : 'none';
+    text.textContent = paused ? '继续旋转' : '暂停旋转';
+    els.playBtn.setAttribute('aria-label', paused ? '继续旋转 F2' : '暂停旋转 F2');
+  }
+
+  function updateScenarioUI(v) {
+    const s = state.scenario;
+    const fixedR = s.kind === 'fixedR';
+    const maxTheta = scenarioMaxTheta();
+    const fixedValue = scenarioFixedValue();
+    const componentMag = state.f1.mag;
+    const resultantMag = v.rMag;
+
+    els.scenarioTabs.forEach(tab => {
+      const active = tab.dataset.scenario === s.kind;
+      tab.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    els.scenarioFixed.min = fixedR ? '4' : '2';
+    els.scenarioFixed.max = '8';
+    els.scenarioFixed.value = fixedValue.toFixed(1);
+    els.scenarioFixedLabel.textContent = fixedR ? '固定合力大小' : '固定分力大小';
+    els.scenarioFixedOut.textContent = `${fmt(fixedValue)} N`;
+    els.scenarioFixed.setAttribute('aria-label', fixedR ? '固定合力大小，单位牛顿' : '固定分力大小，单位牛顿');
+    setFill(els.scenarioFixed);
+
+    els.scenarioTheta.max = String(maxTheta);
+    els.scenarioTheta.value = s.theta.toFixed(1);
+    els.scenarioThetaOut.textContent = `${Math.round(s.theta)}°`;
+    els.scenarioThetaMax.textContent = `${maxTheta}°`;
+    els.scenarioTheta.setAttribute('aria-valuetext', `${Math.round(s.theta)} 度`);
+    setFill(els.scenarioTheta);
+
+    els.scenarioLede.textContent = fixedR
+      ? '保持合力的大小和方向不变，改变两分力夹角，观察两个等大分力如何变化。'
+      : '保持两个分力大小不变，让它们关于合力对称地改变夹角，观察合力如何变化。';
+
+    els.scenarioComponentValue.innerHTML = `${fmt(componentMag)} <small>N</small>`;
+    els.scenarioResultValue.innerHTML = `${fmt(resultantMag)} <small>N</small>`;
+    els.componentTag.textContent = fixedR ? '变化' : '不变';
+    els.componentTag.classList.toggle('changing', fixedR);
+    els.resultantTag.textContent = fixedR ? '不变' : '变化';
+    els.resultantTag.classList.toggle('changing', !fixedR);
+
+    els.angleFixedValue.textContent = fixedR
+      ? `合力大小 F = ${fmt(s.fixedR)} N`
+      : `分力大小 F₁ = F₂ = ${fmt(s.fixedF)} N`;
+    els.angleVariableLabel.textContent = fixedR
+      ? `分力大小 F₁ = F₂ = ${fmt(componentMag)} N`
+      : `合力大小 F = ${fmt(resultantMag)} N`;
+    els.angleThetaValue.textContent = `${Math.round(s.theta)}°`;
+
+    els.scenarioChartTitle.textContent = fixedR ? '分力大小随夹角变化' : '合力大小随夹角变化';
+    els.scenarioTrend.textContent = fixedR ? 'θ ↑ → F₁、F₂ ↑' : 'θ ↑ → F ↓';
+    els.scenarioLegendComponent.textContent = fixedR ? '变化的分力 F₁ = F₂' : '不变的分力 F₁ = F₂';
+    els.scenarioFootnote.textContent = fixedR
+      ? '合力大小不变时，夹角越大，两个分力越大；θ = 0° 时分力最小。'
+      : '分力大小不变时，夹角越大，合力越小；θ = 180° 时合力为零。';
+    els.scenarioChartSvg.setAttribute('aria-label', fixedR
+      ? '分力大小随夹角增大而增大，合力保持不变'
+      : '合力随夹角增大而减小，分力保持不变');
+    drawScenarioChart(v);
+    updateScenarioPlayButton();
+  }
+
+  function drawScenarioChart(v) {
+    const s = state.scenario;
+    const fixedR = s.kind === 'fixedR';
+    const thetaMax = scenarioMaxTheta();
+    const W = 300;
+    const H = 104;
+    const left = 30;
+    const right = 10;
+    const top = 9;
+    const bottom = 20;
+    const plotW = W - left - right;
+    const plotH = H - top - bottom;
+    const compMax = fixedR
+      ? s.fixedR / (2 * Math.cos(toRad(thetaMax / 2)))
+      : s.fixedF;
+    const yMax = Math.max(fixedR ? s.fixedR : 2 * s.fixedF, compMax, 0.1) * 1.12;
+    const xPos = theta => left + clamp(theta / thetaMax, 0, 1) * plotW;
+    const yPos = value => top + plotH - clamp(value / yMax, 0, 1) * plotH;
+    const changeColor = fixedR ? '#2563eb' : '#df2b52';
+    const fixedColor = fixedR ? '#df2b52' : '#2563eb';
+    const fixedValue = fixedR ? s.fixedR : s.fixedF;
+    let out = '';
+
+    out += `<defs><linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${changeColor}" stop-opacity=".16"/>
+      <stop offset="1" stop-color="${changeColor}" stop-opacity="0"/>
+    </linearGradient></defs>`;
+
+    for (let i = 0; i <= 2; i++) {
+      const gy = top + plotH * i / 2;
+      out += `<line x1="${left}" y1="${gy.toFixed(1)}" x2="${W - right}" y2="${gy.toFixed(1)}" stroke="#e3efec" stroke-width=".7"/>`;
+    }
+    for (let i = 0; i <= 2; i++) {
+      const gx = left + plotW * i / 2;
+      out += `<line x1="${gx.toFixed(1)}" y1="${top}" x2="${gx.toFixed(1)}" y2="${top + plotH}" stroke="#e3efec" stroke-width=".7"/>`;
+    }
+
+    // Fixed quantity: a horizontal reference line.
+    const fixedY = yPos(fixedValue);
+    out += `<line x1="${left}" y1="${fixedY.toFixed(1)}" x2="${W - right}" y2="${fixedY.toFixed(1)}" stroke="${fixedColor}" stroke-width="1.5" stroke-dasharray="5 5" opacity=".58"/>`;
+
+    // Changing quantity: the curve.
+    const points = [];
+    const samples = 90;
+    for (let i = 0; i <= samples; i++) {
+      const theta = thetaMax * i / samples;
+      const value = fixedR
+        ? s.fixedR / (2 * Math.cos(toRad(theta / 2)))
+        : 2 * s.fixedF * Math.cos(toRad(theta / 2));
+      points.push({ x: xPos(theta), y: yPos(value), theta, value });
+    }
+    const line = points.map((p, index) => `${index === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
+    const area = `${line} L ${points[points.length - 1].x.toFixed(2)} ${yPos(0).toFixed(2)} L ${points[0].x.toFixed(2)} ${yPos(0).toFixed(2)} Z`;
+    out += `<path d="${area}" fill="url(#chartArea)"/>`;
+    out += `<path d="${line}" fill="none" stroke="${changeColor}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+    const currentX = xPos(s.theta);
+    const currentValue = fixedR ? state.f1.mag : v.rMag;
+    const currentY = yPos(currentValue);
+    out += `<line x1="${currentX.toFixed(1)}" y1="${top}" x2="${currentX.toFixed(1)}" y2="${top + plotH}" stroke="${changeColor}" stroke-width="1" stroke-dasharray="3 4" opacity=".38"/>`;
+    out += `<circle cx="${currentX.toFixed(1)}" cy="${currentY.toFixed(1)}" r="3.8" fill="#fff" stroke="${changeColor}" stroke-width="2.2"/>`;
+
+    out += `<line x1="${left}" y1="${top + plotH}" x2="${W - right}" y2="${top + plotH}" stroke="#cfdfdc" stroke-width=".9"/>`;
+    out += `<line x1="${left}" y1="${top}" x2="${left}" y2="${top + plotH}" stroke="#cfdfdc" stroke-width=".9"/>`;
+    out += `<text x="${left - 4}" y="${top + 4}" text-anchor="end" font-size="7.5" font-weight="700" fill="#93a7a3">${fmt(yMax)}</text>`;
+    out += `<text x="${left - 4}" y="${top + plotH + 2}" text-anchor="end" font-size="7.5" font-weight="700" fill="#93a7a3">0</text>`;
+    out += `<text x="${left}" y="${H - 5}" text-anchor="middle" font-size="7.5" font-weight="650" fill="#93a7a3">0°</text>`;
+    out += `<text x="${left + plotW / 2}" y="${H - 5}" text-anchor="middle" font-size="7.5" font-weight="650" fill="#93a7a3">${Math.round(thetaMax / 2)}°</text>`;
+    out += `<text x="${W - right}" y="${H - 5}" text-anchor="end" font-size="7.5" font-weight="650" fill="#93a7a3">${thetaMax}°</text>`;
+    out += `<text x="${W - right}" y="${top + 8}" text-anchor="end" font-size="7" font-weight="700" fill="#a4b5b1">N</text>`;
+    out += `<text x="${W - right}" y="${top + plotH + 12}" text-anchor="end" font-size="7" font-weight="700" fill="#a4b5b1">θ</text>`;
+
+    els.scenarioChartSvg.innerHTML = out;
+  }
+
+  function updateScenarioPlayButton() {
+    const playing = state.scenario.playing;
+    const pauseIcon = $('.scenario-pause-icon', els.scenarioPlayBtn);
+    const playIcon = $('.scenario-play-icon', els.scenarioPlayBtn);
+    const text = $('span', els.scenarioPlayBtn);
+    if (!pauseIcon || !playIcon || !text) return;
+    pauseIcon.style.display = playing ? '' : 'none';
+    playIcon.style.display = playing ? 'none' : '';
+    text.textContent = playing ? '暂停变化' : '自动演示';
+    els.scenarioPlayBtn.setAttribute('aria-label', playing ? '暂停夹角自动变化' : '自动演示夹角变化');
+  }
+
+  function updateMorphButton() {
+    const text = $('span', els.morphBtn);
+    if (!text) return;
+    text.textContent = state.morphing ? '正在变换…' : '演示推导';
+    els.morphBtn.disabled = state.morphing;
+    els.morphBtn.setAttribute('aria-label', state.morphing ? '正在演示从平行四边形到三角形的变换' : '演示从平行四边形变换到三角形');
+  }
+
+  function startMorph() {
+    if (state.view !== 'triangle') return;
+    if (morphRafId !== null) cancelAnimationFrame(morphRafId);
+    state.morphT = 0;
+    state.morphing = true;
+    morphStart = performance.now();
+    updateMorphButton();
+    updateScene();
+    morphRafId = requestAnimationFrame(tickMorph);
+  }
+
+  function stopMorph(reset = true) {
+    if (morphRafId !== null) {
+      cancelAnimationFrame(morphRafId);
+      morphRafId = null;
+    }
+    state.morphing = false;
+    if (reset) state.morphT = 1;
+    updateMorphButton();
+  }
+
+  function tickMorph(now) {
+    if (state.view !== 'triangle' || !state.morphing) {
+      morphRafId = null;
+      return;
+    }
+    const progress = Math.min((now - morphStart) / 2000, 1);
+    state.morphT = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    if (progress >= 1) {
+      state.morphT = 1;
+      state.morphing = false;
+      morphRafId = null;
+      updateMorphButton();
+      updateScene();
+      return;
+    }
+    updateScene();
+    morphRafId = requestAnimationFrame(tickMorph);
+  }
+
+  function startAnglePlayback() {
+    if (state.view !== 'angle' || angleRafId !== null) return;
+    state.scenario.playing = true;
+    angleLastFrame = performance.now();
+    angleRafId = requestAnimationFrame(tickAngle);
+    updateScenarioPlayButton();
+  }
+
+  function stopAnglePlayback() {
+    state.scenario.playing = false;
+    if (angleRafId !== null) {
+      cancelAnimationFrame(angleRafId);
+      angleRafId = null;
+    }
+    updateScenarioPlayButton();
+  }
+
+  function tickAngle(now) {
+    if (state.view !== 'angle' || !state.scenario.playing) {
+      angleRafId = null;
+      return;
+    }
+    const dt = Math.min((now - angleLastFrame) / 1000, 0.06);
+    angleLastFrame = now;
+    const maxTheta = scenarioMaxTheta();
+    let next = state.scenario.theta + dt * 17 * state.scenario.direction;
+    if (next >= maxTheta) {
+      next = maxTheta;
+      state.scenario.direction = -1;
+    } else if (next <= 0) {
+      next = 0;
+      state.scenario.direction = 1;
+    }
+    state.scenario.theta = next;
+    updateAll();
+    angleRafId = requestAnimationFrame(tickAngle);
+  }
+
+  function niceStep(raw) {
+    const exponent = Math.floor(Math.log10(Math.max(raw, 1e-6)));
+    const base = Math.pow(10, exponent);
+    const fraction = raw / base;
+    let nice = 10;
+    if (fraction <= 1) nice = 1;
+    else if (fraction <= 2) nice = 2;
+    else if (fraction <= 5) nice = 5;
+    return nice * base;
+  }
+
+  function computeLayout(v) {
+    const w = Math.max(1, els.board.clientWidth);
+    const h = Math.max(1, els.board.clientHeight);
+    const pad = clamp(Math.min(w, h) * 0.13, 66, 94);
+    const points = [{ x: 0, y: 0 }, v.A, v.B, v.C];
+
+    if (state.view === 'circle') {
+      const r = state.f2.mag;
+      points.push(
+        { x: v.A.x - r, y: v.A.y - r },
+        { x: v.A.x + r, y: v.A.y - r },
+        { x: v.A.x - r, y: v.A.y + r },
+        { x: v.A.x + r, y: v.A.y + r }
+      );
+    }
+
+    // The angle lab keeps a fixed frame for the whole angle sweep, so vector
+    // lengths can be compared honestly while θ changes.
+    if (state.view === 'angle') {
+      const s = state.scenario;
+      const thetaMax = scenarioMaxTheta();
+      if (s.kind === 'fixedR') {
+        const half = toRad(thetaMax / 2);
+        const fmax = s.fixedR / (2 * Math.cos(half));
+        const xmax = fmax * Math.sin(half);
+        points.push(
+          { x: -xmax, y: s.fixedR / 2 },
+          { x: xmax, y: s.fixedR / 2 },
+          { x: -s.fixedR, y: 0 },
+          { x: s.fixedR, y: 0 },
+          { x: 0, y: -s.fixedR },
+          { x: 0, y: s.fixedR }
+        );
+      } else {
+        const f = s.fixedF;
+        points.push(
+          { x: -f, y: 0 },
+          { x: f, y: 0 },
+          { x: 0, y: 2 * f }
+        );
+      }
+    }
+
+    let minX = Math.min(...points.map(p => p.x));
+    let maxX = Math.max(...points.map(p => p.x));
+    let minY = Math.min(...points.map(p => p.y));
+    let maxY = Math.max(...points.map(p => p.y));
+
+    const spanX = Math.max(maxX - minX, 0.8);
+    const spanY = Math.max(maxY - minY, 0.8);
+    const scale = Math.min((w - pad * 2) / spanX, (h - pad * 2) / spanY, 84);
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    return {
+      w, h, pad, scale, centerX, centerY, cx, cy,
+      sx: x => cx + (x - centerX) * scale,
+      sy: y => cy - (y - centerY) * scale,
+      wx: x => centerX + (x - cx) / scale,
+      wy: y => centerY - (y - cy) / scale
+    };
+  }
+
+  function buildGrid(l) {
+    const xMin = l.wx(0);
+    const xMax = l.wx(l.w);
+    const yMin = l.wy(l.h);
+    const yMax = l.wy(0);
+    const step = niceStep(30 / l.scale);
+    const major = step * 5;
+    let out = '';
+
+    const isMajor = value => Math.abs(value / major - Math.round(value / major)) < 1e-6;
+    const firstX = Math.ceil(xMin / step) * step;
+    for (let x = firstX; x <= xMax + step * 0.1; x += step) {
+      const sx = l.sx(x).toFixed(2);
+      out += `<line class="grid-line${isMajor(x) ? ' major' : ''}" x1="${sx}" y1="0" x2="${sx}" y2="${l.h}"/>`;
+    }
+    const firstY = Math.ceil(yMin / step) * step;
+    for (let y = firstY; y <= yMax + step * 0.1; y += step) {
+      const sy = l.sy(y).toFixed(2);
+      out += `<line class="grid-line${isMajor(y) ? ' major' : ''}" x1="0" y1="${sy}" x2="${l.w}" y2="${sy}"/>`;
+    }
+    const ox = l.sx(0).toFixed(2);
+    const oy = l.sy(0).toFixed(2);
+    out += `<line class="grid-axis" x1="${ox}" y1="0" x2="${ox}" y2="${l.h}"/>`;
+    out += `<line class="grid-axis" x1="0" y1="${oy}" x2="${l.w}" y2="${oy}"/>`;
+
+    return out;
+  }
+
+  function arrow(x1, y1, x2, y2, color, width, options = {}) {
+    const {
+      head = 12.5,
+      opacity = 1,
+      dash = '',
+      className = ''
+    } = options;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.hypot(dx, dy);
+    if (length < 1.5) return '';
+
+    const ux = dx / length;
+    const uy = dy / length;
+    const h = Math.min(head, Math.max(7, length * 0.42));
+    const bx = x2 - ux * h;
+    const by = y2 - uy * h;
+    const wing = h * 0.5;
+    const nx = -uy;
+    const ny = ux;
+    const lineEndX = x2 - ux * h * 0.72;
+    const lineEndY = y2 - uy * h * 0.72;
+    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+
+    return `<g opacity="${opacity}"${className ? ` class="${className}"` : ''}>
+      <line class="arrow-line" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${lineEndX.toFixed(2)}" y2="${lineEndY.toFixed(2)}" stroke="${color}" stroke-width="${width}"${dashAttr}/>
+      <path d="M ${x2.toFixed(2)} ${y2.toFixed(2)} L ${(bx + nx * wing).toFixed(2)} ${(by + ny * wing).toFixed(2)} L ${(bx - nx * wing).toFixed(2)} ${(by - ny * wing).toFixed(2)} Z" fill="${color}"/>
+    </g>`;
+  }
+
+  function dashedSide(x1, y1, x2, y2, color, width = 1.6, opacity = .62) {
+    return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${color}" stroke-width="${width}" stroke-dasharray="6 7" stroke-linecap="round" opacity="${opacity}"/>`;
+  }
+
+  function norm(x, y) {
+    const length = Math.hypot(x, y) || 1;
+    return { x: x / length, y: y / length };
+  }
+
+  function placeLabel(textName, value, x, y, color, anchor = 'middle') {
+    const w = els.board.clientWidth;
+    if (anchor === 'start') x = clamp(x, 50, w - 112);
+    else if (anchor === 'end') x = clamp(x, 112, w - 50);
+    else x = clamp(x, 72, w - 72);
+    y = clamp(y, 26, els.board.clientHeight - 20);
+    return `<text class="label-halo" text-anchor="${anchor}" x="${x.toFixed(2)}" y="${y.toFixed(2)}">
+      <tspan class="v-label-name" fill="${color}">${textName}</tspan>
+      <tspan class="v-label-value" dx="5" fill="#667b93">${value}</tspan>
+    </text>`;
+  }
+
+  function placeMiniLabel(name, value, x, y, color, anchor = 'middle') {
+    if (anchor === 'start') x = clamp(x, 58, els.board.clientWidth - 76);
+    else if (anchor === 'end') x = clamp(x, 76, els.board.clientWidth - 58);
+    else x = clamp(x, 62, els.board.clientWidth - 62);
+    y = clamp(y, 22, els.board.clientHeight - 14);
+    return `<text class="mini-label" text-anchor="${anchor}" x="${x.toFixed(2)}" y="${y.toFixed(2)}">
+      <tspan fill="${color}">${name}</tspan><tspan dx="4" fill="#967f90">${value}</tspan>
+    </text>`;
+  }
+
+  function smartAnchor(screenUx) {
+    if (screenUx > 0.34) return 'start';
+    if (screenUx < -0.34) return 'end';
+    return 'middle';
+  }
+
+  function anchorForOffset(offsetX) {
+    if (offsetX > 0.3) return 'start';
+    if (offsetX < -0.3) return 'end';
+    return 'middle';
+  }
+
+  function drawParallelogram(v, l) {
+    const O = { x: l.sx(0), y: l.sy(0) };
+    const A = { x: l.sx(v.A.x), y: l.sy(v.A.y) };
+    const B = { x: l.sx(v.B.x), y: l.sy(v.B.y) };
+    const C = { x: l.sx(v.C.x), y: l.sy(v.C.y) };
+    let out = '';
+
+    out += `<polygon points="${O.x},${O.y} ${A.x},${A.y} ${C.x},${C.y} ${B.x},${B.y}" fill="url(#paraFill)" stroke="none"/>`;
+    out += dashedSide(A.x, A.y, C.x, C.y, '#e98218', 1.6, .48);
+    out += dashedSide(B.x, B.y, C.x, C.y, '#2563eb', 1.6, .42);
+
+    // Included angle arc.
+    const theta = v.between;
+    if (theta > 6 && theta < 174) {
+      const radius = clamp(Math.min(l.w, l.h) * 0.11, 37, 54);
+      const a1 = toRad(state.f1.angle);
+      const start = { x: O.x + Math.cos(a1) * radius, y: O.y - Math.sin(a1) * radius };
+      let delta = normalizeAngle(state.f2.angle - state.f1.angle);
+      if (delta > 180) delta -= 360;
+      const a2 = a1 + delta * DEG;
+      const end = { x: O.x + Math.cos(a2) * radius, y: O.y - Math.sin(a2) * radius };
+      const large = Math.abs(delta) > 180 ? 1 : 0;
+      const sweep = delta > 0 ? 0 : 1;
+      out += `<path d="M ${start.x.toFixed(1)} ${start.y.toFixed(1)} A ${radius} ${radius} 0 ${large} ${sweep} ${end.x.toFixed(1)} ${end.y.toFixed(1)}" fill="none" stroke="#8fa3ba" stroke-width="1.2" stroke-dasharray="4 4" opacity=".7"/>`;
+    }
+
+    // Solid vectors.
+    out += arrow(O.x, O.y, A.x, A.y, '#2563eb', 3.8, { head: 13 });
+    out += arrow(O.x, O.y, B.x, B.y, '#e98218', 3.8, { head: 13 });
+    out += arrow(O.x, O.y, C.x, C.y, '#df2b52', 5, { head: 15.5 });
+
+    // Labels, placed to the outside of the included angle.
+    const midA = { x: O.x + (A.x - O.x) * 0.45, y: O.y + (A.y - O.y) * 0.45 };
+    const nA = norm(-(A.y - O.y), A.x - O.x);
+    let nSign1 = 1;
+    const cross = (v.A.x * v.B.y - v.A.y * v.B.x);
+    if (cross < 0) nSign1 = -1;
+    const off1X = nA.x * 27 * nSign1;
+    const off1Y = nA.y * 27 * nSign1;
+    const l1 = { x: midA.x + off1X, y: midA.y + off1Y };
+
+    const midB = { x: O.x + (B.x - O.x) * 0.43, y: O.y + (B.y - O.y) * 0.43 };
+    const nB = norm(-(B.y - O.y), B.x - O.x);
+    let nSign2 = -1;
+    if (cross < 0) nSign2 = 1;
+    const off2X = nB.x * 24 * nSign2;
+    const off2Y = nB.y * 24 * nSign2;
+    const l2 = { x: midB.x + off2X, y: midB.y + off2Y };
+
+    out += placeLabel('F₁', `${fmt(state.f1.mag)} N`, l1.x, l1.y, '#2563eb', anchorForOffset(off1X));
+    out += placeLabel('F₂', `${fmt(state.f2.mag)} N`, l2.x, l2.y, '#e98218', anchorForOffset(off2X));
+
+    if (v.rMag > 0.05) {
+      const uR = norm(C.x - O.x, C.y - O.y);
+      const lp = { x: C.x + uR.x * 25, y: C.y + uR.y * 25 };
+      out += placeLabel('F', `${fmt(v.rMag)} N`, lp.x, lp.y, '#df2b52', smartAnchor(uR.x));
+    }
+
+    // Vertices.
+    out += `<circle cx="${O.x}" cy="${O.y}" r="4.4" fill="#173c64" stroke="#fff" stroke-width="2.5"/>`;
+    out += `<circle cx="${A.x}" cy="${A.y}" r="4" fill="#fff" stroke="#2563eb" stroke-width="2.3"/>`;
+    out += `<circle cx="${B.x}" cy="${B.y}" r="4" fill="#fff" stroke="#e98218" stroke-width="2.3"/>`;
+    out += `<text x="${(O.x - 10).toFixed(1)}" y="${(O.y + 18).toFixed(1)}" font-size="10.5" font-weight="700" fill="#7d8da2">O</text>`;
+    return out;
+  }
+
+  function drawTriangle(v, l, morphT = 1) {
+    const O = { x: l.sx(0), y: l.sy(0) };
+    const A = { x: l.sx(v.A.x), y: l.sy(v.A.y) };
+    const B = { x: l.sx(v.B.x), y: l.sy(v.B.y) };
+    const C = { x: l.sx(v.C.x), y: l.sy(v.C.y) };
+    const t = clamp(morphT, 0, 1);
+    const morphing = t < 0.999;
+    const dx = A.x - O.x;
+    const dy = A.y - O.y;
+    const S = { x: O.x + dx * t, y: O.y + dy * t };
+    const E = { x: B.x + dx * t, y: B.y + dy * t };
+    let out = '';
+
+    if (morphing) {
+      out += `<polygon points="${O.x},${O.y} ${A.x},${A.y} ${C.x},${C.y} ${B.x},${B.y}" fill="url(#paraFill)" opacity="${(0.94 * (1 - t)).toFixed(3)}" stroke="none"/>`;
+      out += dashedSide(A.x, A.y, C.x, C.y, '#e98218', 1.6, 0.5 * (1 - t));
+      out += dashedSide(B.x, B.y, C.x, C.y, '#2563eb', 1.6, 0.46 * (1 - t));
+    }
+    out += `<polygon points="${O.x},${O.y} ${A.x},${A.y} ${C.x},${C.y}" fill="url(#triangleFill)" opacity="${(0.3 + 0.7 * t).toFixed(3)}" stroke="none"/>`;
+
+    out += arrow(O.x, O.y, A.x, A.y, '#2563eb', 3.8, { head: 13 });
+    out += arrow(S.x, S.y, E.x, E.y, '#e98218', 3.8, { head: 13 });
+    out += arrow(O.x, O.y, C.x, C.y, '#df2b52', 5, { head: 15.5 });
+
+    // F1 label to the outside of the triangle.
+    const mid1 = { x: O.x + (A.x - O.x) * 0.43, y: O.y + (A.y - O.y) * 0.43 };
+    const n1 = norm(-(A.y - O.y), A.x - O.x);
+    const cross = (v.A.x * v.B.y - v.A.y * v.B.x);
+    const sign1 = cross >= 0 ? 1 : -1;
+    const off1X = n1.x * 27 * sign1;
+    out += placeLabel('F₁', `${fmt(state.f1.mag)} N`, mid1.x + off1X, mid1.y + n1.y * 27 * sign1, '#2563eb', anchorForOffset(off1X));
+
+    // The orange F2 arrow slides from the origin to the tip of F1.
+    const mid2 = { x: S.x + (E.x - S.x) * 0.45, y: S.y + (E.y - S.y) * 0.45 };
+    const n2 = norm(-(E.y - S.y), E.x - S.x);
+    const finalMid2 = { x: (A.x + C.x) / 2, y: (A.y + C.y) / 2 };
+    const sign2 = n2.x * (O.x - finalMid2.x) + n2.y * (O.y - finalMid2.y) > 0 ? -1 : 1;
+    const off2X = n2.x * 27 * sign2;
+    out += placeLabel('F₂', `${fmt(state.f2.mag)} N`, mid2.x + off2X, mid2.y + n2.y * 27 * sign2, '#e98218', anchorForOffset(off2X));
+
+    if (v.rMag > 0.05) {
+      const uR = norm(C.x - O.x, C.y - O.y);
+      out += placeLabel('F', `${fmt(v.rMag)} N`, C.x + uR.x * 25, C.y + uR.y * 25, '#df2b52', smartAnchor(uR.x));
+    }
+
+    if (morphing) {
+      out += `<circle cx="${B.x}" cy="${B.y}" r="4.2" fill="#fff" stroke="#e98218" stroke-width="2.2" opacity="${(0.55 * (1 - t)).toFixed(2)}"/>`;
+    }
+
+    out += `<circle cx="${O.x}" cy="${O.y}" r="4.4" fill="#173c64" stroke="#fff" stroke-width="2.5"/>`;
+    out += `<circle cx="${A.x}" cy="${A.y}" r="4" fill="#fff" stroke="#2563eb" stroke-width="2.3"/>`;
+    out += `<circle cx="${C.x}" cy="${C.y}" r="4.5" fill="#fff" stroke="#df2b52" stroke-width="2.4"/>`;
+    out += `<text x="${(O.x - 10).toFixed(1)}" y="${(O.y + 18).toFixed(1)}" font-size="10.5" font-weight="700" fill="#7d8da2">O</text>`;
+    return out;
+  }
+
+  function drawAngleScene(v, l) {
+    const O = { x: l.sx(0), y: l.sy(0) };
+    const A = { x: l.sx(v.A.x), y: l.sy(v.A.y) };
+    const B = { x: l.sx(v.B.x), y: l.sy(v.B.y) };
+    const C = { x: l.sx(v.C.x), y: l.sy(v.C.y) };
+    const s = state.scenario;
+    const fixedR = s.kind === 'fixedR';
+    const theta = v.between;
+    let out = '';
+
+    // Constant-magnitude reference: a circle for fixed R, a semicircle for fixed F.
+    if (fixedR) {
+      const rr = s.fixedR * l.scale;
+      out += `<circle cx="${O.x}" cy="${O.y}" r="${rr}" fill="none" stroke="#69bdb2" stroke-width="1.5" stroke-dasharray="6 7" opacity=".62"/>`;
+    } else {
+      const rf = s.fixedF * l.scale;
+      out += `<path d="M ${(O.x + rf).toFixed(1)} ${O.y.toFixed(1)} A ${rf.toFixed(1)} ${rf.toFixed(1)} 0 0 0 ${(O.x - rf).toFixed(1)} ${O.y.toFixed(1)}" fill="none" stroke="#69bdb2" stroke-width="1.5" stroke-dasharray="6 7" opacity=".62"/>`;
+    }
+
+    // Rhombus formed by two equal force vectors, with the resultant as diagonal.
+    out += `<polygon points="${O.x},${O.y} ${A.x},${A.y} ${C.x},${C.y} ${B.x},${B.y}" fill="url(#paraFill)" stroke="none"/>`;
+    out += dashedSide(A.x, A.y, C.x, C.y, '#e98218', 1.6, .44);
+    out += dashedSide(B.x, B.y, C.x, C.y, '#2563eb', 1.6, .4);
+
+    // Included angle θ.
+    if (theta > 1.5) {
+      const arcRadius = clamp(Math.min(l.w, l.h) * 0.095, 34, 50);
+      const a1 = toRad(state.f1.angle);
+      const a2 = toRad(state.f2.angle);
+      const start = { x: O.x + Math.cos(a1) * arcRadius, y: O.y - Math.sin(a1) * arcRadius };
+      const end = { x: O.x + Math.cos(a2) * arcRadius, y: O.y - Math.sin(a2) * arcRadius };
+      out += `<path d="M ${start.x.toFixed(1)} ${start.y.toFixed(1)} A ${arcRadius} ${arcRadius} 0 0 0 ${end.x.toFixed(1)} ${end.y.toFixed(1)}" fill="none" stroke="#52b8ab" stroke-width="1.55" opacity=".9"/>`;
+    }
+
+    // Vectors.
+    out += arrow(O.x, O.y, A.x, A.y, '#2563eb', 3.8, { head: 13 });
+    out += arrow(O.x, O.y, B.x, B.y, '#e98218', 3.8, { head: 13 });
+    if (v.rMag > 0.05) out += arrow(O.x, O.y, C.x, C.y, '#df2b52', 5, { head: 15.5 });
+
+    // Endpoint markers.
+    out += `<circle cx="${O.x}" cy="${O.y}" r="4.4" fill="#173c64" stroke="#fff" stroke-width="2.5"/>`;
+    out += `<circle cx="${A.x}" cy="${A.y}" r="4" fill="#fff" stroke="#2563eb" stroke-width="2.3"/>`;
+    out += `<circle cx="${B.x}" cy="${B.y}" r="4" fill="#fff" stroke="#e98218" stroke-width="2.3"/>`;
+    if (v.rMag > 0.05) out += `<circle cx="${C.x}" cy="${C.y}" r="4.3" fill="#fff" stroke="#df2b52" stroke-width="2.3"/>`;
+
+    // Labels sit outside the fan, on opposite sides.
+    const mid1 = { x: O.x + (A.x - O.x) * 0.47, y: O.y + (A.y - O.y) * 0.47 };
+    const mid2 = { x: O.x + (B.x - O.x) * 0.47, y: O.y + (B.y - O.y) * 0.47 };
+    out += placeLabel('F₁', `${fmt(state.f1.mag)} N`, mid1.x + 28, mid1.y + 20, '#2563eb', 'start');
+    out += placeLabel('F₂', `${fmt(state.f2.mag)} N`, mid2.x - 28, mid2.y + 20, '#e98218', 'end');
+
+    if (v.rMag > 0.05) {
+      out += placeLabel('F', `${fmt(v.rMag)} N`, C.x, C.y - 27, '#df2b52', 'middle');
+    }
+
+    out += `<text x="${(O.x - 10).toFixed(1)}" y="${(O.y + 18).toFixed(1)}" font-size="10.5" font-weight="700" fill="#7d8da2">O</text>`;
+    return out;
+  }
+
+  function drawCircleScene(v, l) {
+    const O = { x: l.sx(0), y: l.sy(0) };
+    const A = { x: l.sx(v.A.x), y: l.sy(v.A.y) };
+    const C = { x: l.sx(v.C.x), y: l.sy(v.C.y) };
+    const radius = state.f2.mag * l.scale;
+    const u1 = { x: Math.cos(toRad(state.f1.angle)), y: Math.sin(toRad(state.f1.angle)) };
+    const Pmax = { x: A.x + u1.x * radius, y: A.y - u1.y * radius };
+    const Pmin = { x: A.x - u1.x * radius, y: A.y + u1.y * radius };
+    let out = '';
+
+    // Range guide: line through the fixed direction, with two extreme points.
+    out += `<line x1="${Pmin.x.toFixed(1)}" y1="${Pmin.y.toFixed(1)}" x2="${Pmax.x.toFixed(1)}" y2="${Pmax.y.toFixed(1)}" stroke="#b8a6dd" stroke-width="1.1" stroke-dasharray="4 6" opacity=".66"/>`;
+
+    // Main orbit: centre is the tip of fixed F1, radius is |F2|.
+    out += `<circle class="orbit" cx="${A.x}" cy="${A.y}" r="${radius}" fill="rgba(124,58,237,.05)" stroke="#8752ea" stroke-width="2.1"/>`;
+
+    // Fixed F1, translated F2, current resultant.
+    out += arrow(O.x, O.y, A.x, A.y, '#2563eb', 3.8, { head: 13 });
+    out += arrow(A.x, A.y, C.x, C.y, '#e98218', 3.8, { head: 13 });
+    out += arrow(O.x, O.y, C.x, C.y, '#df2b52', 5, { head: 15.5 });
+
+    // Extreme points sit above the arrow layer so the nearest point stays visible.
+    out += `<circle cx="${Pmax.x}" cy="${Pmax.y}" r="4.4" fill="#fff" stroke="#df2b52" stroke-width="2.3"/>`;
+    out += `<circle cx="${Pmin.x}" cy="${Pmin.y}" r="4.4" fill="#fff" stroke="#df2b52" stroke-width="2.3"/>`;
+    out += `<circle cx="${A.x}" cy="${A.y}" r="3.4" fill="#7c3aed" stroke="#fff" stroke-width="1.8"/>`;
+
+    // Labels.
+    const mid1 = { x: O.x + (A.x - O.x) * 0.44, y: O.y + (A.y - O.y) * 0.44 };
+    const n1 = norm(-(A.y - O.y), A.x - O.x);
+    const sign1 = n1.y >= 0 ? 1 : -1;
+    const off1X = n1.x * 25 * sign1;
+    out += placeLabel('F₁', `${fmt(state.f1.mag)} N`, mid1.x + off1X, mid1.y + n1.y * 25 * sign1, '#2563eb', anchorForOffset(off1X));
+
+    const mid2 = { x: A.x + (C.x - A.x) * 0.48, y: A.y + (C.y - A.y) * 0.48 };
+    const n2 = norm(-(C.y - A.y), C.x - A.x);
+    const outward = { x: mid2.x - O.x, y: mid2.y - O.y };
+    const sign2 = n2.x * outward.x + n2.y * outward.y >= 0 ? 1 : -1;
+    const off2X = n2.x * 23 * sign2;
+    out += placeLabel('F₂', `${fmt(state.f2.mag)} N`, mid2.x + off2X, mid2.y + n2.y * 23 * sign2, '#e98218', anchorForOffset(off2X));
+
+    if (v.rMag > 0.05) {
+      const uR = norm(C.x - O.x, C.y - O.y);
+      out += placeLabel('F', `${fmt(v.rMag)} N`, C.x + uR.x * 22, C.y + uR.y * 22, '#df2b52', smartAnchor(uR.x));
+    }
+
+    // Extreme-point captions sit on the side of the axis opposite the F1 label.
+    const u1s = norm(Pmax.x - Pmin.x, Pmax.y - Pmin.y);
+    const axisNormal = norm(-u1s.y, u1s.x);
+    const captionNormalX = -axisNormal.x;
+    const captionNormalY = -axisNormal.y;
+    const aMax = u1s.x > 0.25 ? 'start' : u1s.x < -0.25 ? 'end' : 'middle';
+    const aMin = aMax === 'start' ? 'end' : aMax === 'end' ? 'start' : 'middle';
+    out += placeMiniLabel('F最大', `${fmt(state.f1.mag + state.f2.mag)} N`, Pmax.x + captionNormalX * 16 + u1s.x * 7, Pmax.y + captionNormalY * 16 + u1s.y * 7, '#c55c79', aMax);
+    out += placeMiniLabel('F最小', `${fmt(Math.abs(state.f1.mag - state.f2.mag))} N`, Pmin.x + captionNormalX * 16 - u1s.x * 7, Pmin.y + captionNormalY * 16 - u1s.y * 7, '#c77c8d', aMin);
+
+    // Current point on the orbit: drag target and resultant arrowhead.
+    out += `<circle class="orbit-knob" cx="${C.x}" cy="${C.y}" r="6.2" fill="#fff" stroke="#df2b52" stroke-width="3"/>`;
+    out += `<circle class="orbit-hit" data-orbit-handle="true" cx="${C.x}" cy="${C.y}" r="18" fill="transparent"/>`;
+
+    out += `<circle cx="${O.x}" cy="${O.y}" r="4.4" fill="#173c64" stroke="#fff" stroke-width="2.5"/>`;
+    out += `<text x="${(O.x - 10).toFixed(1)}" y="${(O.y + 18).toFixed(1)}" font-size="10.5" font-weight="700" fill="#7d8da2">O</text>`;
+    out += `<text x="${(A.x + 9).toFixed(1)}" y="${(A.y - 9).toFixed(1)}" class="mini-label" fill="#8768c6">圆心 A</text>`;
+    return out;
+  }
+
+  function updateScene(v = computeVectors()) {
+    const w = els.board.clientWidth;
+    const h = els.board.clientHeight;
+    if (!w || !h) return;
+
+    const l = computeLayout(v);
+    layout = l;
+    els.svg.setAttribute('viewBox', `0 0 ${l.w} ${l.h}`);
+    els.svg.setAttribute('width', String(l.w));
+    els.svg.setAttribute('height', String(l.h));
+
+    let content = buildGrid(l);
+    if (state.view === 'parallelogram') content += drawParallelogram(v, l);
+    else if (state.view === 'triangle') content += drawTriangle(v, l, state.morphT);
+    else if (state.view === 'angle') content += drawAngleScene(v, l);
+    else content += drawCircleScene(v, l);
+
+    els.svg.innerHTML = `<defs>
+      <linearGradient id="paraFill" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#2563eb" stop-opacity=".075"/>
+        <stop offset="1" stop-color="#e98218" stop-opacity=".055"/>
+      </linearGradient>
+      <linearGradient id="triangleFill" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#2563eb" stop-opacity=".055"/>
+        <stop offset="1" stop-color="#df2b52" stop-opacity=".035"/>
+      </linearGradient>
+    </defs>${content}`;
+
+    // Dynamic scale notation.
+    const niceN = niceStep(92 / l.scale);
+    els.scaleBar.style.width = `${clamp(niceN * l.scale, 46, 150)}px`;
+    els.scaleText.textContent = `${Number.isInteger(niceN) ? niceN : niceN.toFixed(1)} N`;
+  }
+
+  function updateTabState(view) {
+    els.tabs.forEach(tab => {
+      const active = tab.dataset.view === view;
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      tab.tabIndex = active ? 0 : -1;
+    });
+  }
+
+  function restoreSavedVectors() {
+    if (!savedVectors) return;
+    state.f1 = { ...savedVectors.f1 };
+    state.f2 = { ...savedVectors.f2 };
+    savedVectors = null;
+  }
+
+  function setView(view) {
+    if (!['parallelogram', 'triangle', 'circle', 'angle'].includes(view)) return;
+    if (view === state.view) return;
+    const previous = state.view;
+
+    stopPlayback();
+    stopAnglePlayback();
+    stopMorph();
+
+    if (previous === 'angle' && view !== 'angle') restoreSavedVectors();
+
+    state.view = view;
+    updateTabState(view);
+
+    if (view === 'angle') {
+      if (previous !== 'angle') {
+        savedVectors = {
+          f1: { ...state.f1 },
+          f2: { ...state.f2 }
+        };
+      }
+      state.playing = false;
+      state.scenario.playing = false;
+      state.scenario.direction = 1;
+      applyScenarioToState();
+    } else {
+      state.scenario.playing = false;
+      if (view === 'circle') {
+        state.playing = !reduceMotion;
+        if (!reduceMotion) startPlayback();
+        else updatePlayButton();
+      } else {
+        state.playing = false;
+        if (view === 'triangle') state.morphT = 1;
+      }
+    }
+
+    updateAll();
+  }
+
+  function startPlayback() {
+    if (state.view !== 'circle') return;
+    if (rafId !== null) return;
+    state.playing = true;
+    lastFrame = performance.now();
+    rafId = requestAnimationFrame(tick);
+    updatePlayButton();
+  }
+
+  function stopPlayback() {
+    state.playing = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    if (els.playBtn) updatePlayButton();
+    if (els.board) els.board.classList.add('is-paused');
+  }
+
+  function tick(now) {
+    if (state.view !== 'circle' || !state.playing) {
+      rafId = null;
+      return;
+    }
+    const dt = Math.min((now - lastFrame) / 1000, 0.06);
+    lastFrame = now;
+    state.f2.angle = normalizeAngle(state.f2.angle + dt * 21);
+    updateAll();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function pausePlayback() {
+    if (!state.playing) return;
+    stopPlayback();
+    els.playBtn.classList.add('is-visible');
+    els.board.classList.add('is-paused');
+  }
+
+  function adjustResultant(target) {
+    const v = computeVectors();
+    target = clamp(target, 0.1, 24);
+
+    if (v.rMag > 0.08) {
+      let k = target / v.rMag;
+      const minK = Math.max(MIN_MAG / state.f1.mag, MIN_MAG / state.f2.mag);
+      const maxK = Math.min(MAX_MAG / state.f1.mag, MAX_MAG / state.f2.mag);
+      k = clamp(k, minK, maxK);
+      state.f1.mag = clamp(state.f1.mag * k, MIN_MAG, MAX_MAG);
+      state.f2.mag = clamp(state.f2.mag * k, MIN_MAG, MAX_MAG);
+      return;
+    }
+
+    // Degenerate case: F1 and F2 are (almost) equal and opposite.
+    const between = v.between;
+    if (between > 179) {
+      const opposing = state.f1.mag + target;
+      const sameSide = state.f1.mag - target;
+      if (sameSide >= MIN_MAG) state.f2.mag = sameSide;
+      else state.f2.mag = clamp(opposing, MIN_MAG, MAX_MAG);
+    } else {
+      state.f2.mag = clamp(target, MIN_MAG, MAX_MAG);
+    }
+  }
+
+  function setScenarioKind(kind) {
+    if (state.view !== 'angle' || !['fixedR', 'fixedF'].includes(kind)) return;
+    if (state.scenario.kind === kind) return;
+    stopAnglePlayback();
+    state.scenario.kind = kind;
+    state.scenario.theta = clamp(state.scenario.theta, 0, scenarioMaxTheta());
+    state.scenario.direction = 1;
+    updateAll();
+  }
+
+  // Event bindings ---------------------------------------------------------
+  els.tabs.forEach(tab => {
+    tab.addEventListener('click', () => setView(tab.dataset.view));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const index = els.tabs.indexOf(tab);
+      let next = index;
+      if (event.key === 'ArrowRight') next = (index + 1) % els.tabs.length;
+      if (event.key === 'ArrowLeft') next = (index - 1 + els.tabs.length) % els.tabs.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = els.tabs.length - 1;
+      els.tabs[next].focus();
+      setView(els.tabs[next].dataset.view);
+    });
+  });
+
+  els.f1Mag.addEventListener('input', event => {
+    state.f1.mag = clamp(Number(event.target.value), MIN_MAG, MAX_MAG);
+    updateAll();
+  });
+  els.f1Angle.addEventListener('input', event => {
+    state.f1.angle = normalizeAngle(Number(event.target.value));
+    updateAll();
+  });
+  els.f2Mag.addEventListener('input', event => {
+    state.f2.mag = clamp(Number(event.target.value), MIN_MAG, MAX_MAG);
+    updateAll();
+  });
+  els.f2Angle.addEventListener('input', event => {
+    if (state.view === 'circle') pausePlayback();
+    state.f2.angle = normalizeAngle(Number(event.target.value));
+    updateAll();
+  });
+  els.f2Angle.addEventListener('pointerdown', () => {
+    if (state.view === 'circle') pausePlayback();
+  });
+  els.resultMagInput.addEventListener('input', event => {
+    adjustResultant(Number(event.target.value));
+    updateAll();
+  });
+
+  els.morphBtn.addEventListener('click', () => {
+    if (state.view === 'triangle') startMorph();
+  });
+
+  els.scenarioTabs.forEach(tab => {
+    tab.addEventListener('click', () => setScenarioKind(tab.dataset.scenario));
+  });
+
+  els.scenarioFixed.addEventListener('pointerdown', () => stopAnglePlayback());
+  els.scenarioFixed.addEventListener('input', event => {
+    stopAnglePlayback();
+    const value = Number(event.target.value);
+    if (state.scenario.kind === 'fixedR') {
+      state.scenario.fixedR = clamp(value, 4, 8);
+    } else {
+      state.scenario.fixedF = clamp(value, 2, 8);
+    }
+    state.scenario.direction = 1;
+    updateAll();
+  });
+
+  els.scenarioTheta.addEventListener('pointerdown', () => stopAnglePlayback());
+  els.scenarioTheta.addEventListener('input', event => {
+    stopAnglePlayback();
+    state.scenario.theta = clamp(Number(event.target.value), 0, scenarioMaxTheta());
+    state.scenario.direction = 1;
+    updateAll();
+  });
+
+  els.scenarioPlayBtn.addEventListener('click', () => {
+    if (state.view !== 'angle') return;
+    if (state.scenario.playing) {
+      stopAnglePlayback();
+      updateAll();
+    } else {
+      startAnglePlayback();
+    }
+  });
+
+  els.playBtn.addEventListener('click', () => {
+    if (state.view !== 'circle') return;
+    if (state.playing) {
+      pausePlayback();
+    } else {
+      startPlayback();
+      els.board.classList.remove('is-paused');
+    }
+    updateAll();
+  });
+
+  els.resetBtn.addEventListener('click', () => {
+    stopPlayback();
+    stopAnglePlayback();
+    stopMorph();
+    savedVectors = null;
+    state.f1 = { ...DEFAULTS.f1 };
+    state.f2 = { ...DEFAULTS.f2 };
+    state.view = 'parallelogram';
+    state.playing = false;
+    state.morphT = 1;
+    state.morphing = false;
+    state.scenario = {
+      ...SCENARIO_DEFAULTS,
+      playing: false,
+      direction: 1
+    };
+    updateTabState('parallelogram');
+    updateAll();
+  });
+
+  function pointFromEvent(event) {
+    if (!layout) return null;
+    const point = els.svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const screen = point.matrixTransform(els.svg.getScreenCTM().inverse());
+    return {
+      x: layout.wx(screen.x),
+      y: layout.wy(screen.y)
+    };
+  }
+
+  function orbitPointerDown(event) {
+    if (state.view !== 'circle') return;
+    const hit = event.target.closest('[data-orbit-handle]');
+    if (!hit) return;
+    event.preventDefault();
+    dragPoint = pointFromEvent(event);
+    if (!dragPoint) return;
+    pausePlayback();
+    try { els.svg.setPointerCapture?.(event.pointerId); } catch (error) { /* ignore */ }
+    event.currentTarget.style.cursor = 'grabbing';
+  }
+
+  function orbitPointerMove(event) {
+    if (!dragPoint || state.view !== 'circle') return;
+    event.preventDefault();
+    const world = pointFromEvent(event);
+    if (!world) return;
+    const v = computeVectors();
+    const dx = world.x - v.A.x;
+    const dy = world.y - v.A.y;
+    if (Math.hypot(dx, dy) > 0.08) {
+      state.f2.angle = normalizeAngle(Math.atan2(dy, dx) / DEG);
+      updateAll();
+    }
+  }
+
+  function orbitPointerUp(event) {
+    if (!dragPoint) return;
+    dragPoint = null;
+    try { els.svg.releasePointerCapture?.(event.pointerId); } catch (error) { /* ignore */ }
+    els.svg.style.cursor = '';
+    updateAll();
+  }
+
+  els.svg.addEventListener('pointerdown', orbitPointerDown);
+  els.svg.addEventListener('pointermove', orbitPointerMove);
+  els.svg.addEventListener('pointerup', orbitPointerUp);
+  els.svg.addEventListener('pointercancel', orbitPointerUp);
+
+  const ro = new ResizeObserver(() => updateAll({ syncInputs: false }));
+  ro.observe(els.board);
+
+  // Optional deep links for classroom use: #triangle / #circle.
+  const hashView = location.hash.replace('#', '');
+  if (['parallelogram', 'triangle', 'circle'].includes(hashView)) {
+    state.view = hashView;
+    els.tabs.forEach(tab => {
+      const active = tab.dataset.view === hashView;
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      tab.tabIndex = active ? 0 : -1;
+    });
+    if (hashView === 'circle' && !reduceMotion) {
+      state.playing = true;
+    }
+  }
+
+  updateAll();
+  if (state.view === 'circle' && state.playing) {
+    startPlayback();
+  }
+})();
+</script>
+</body>
+</html>
